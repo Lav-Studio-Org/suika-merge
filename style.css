@@ -20,8 +20,12 @@ html, body {
   font-family: "Fredoka", ui-rounded, "Segoe UI", system-ui, sans-serif;
   user-select: none;
   -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-text-size-adjust: 100%;
   touch-action: none;
 }
+body { position: fixed; inset: 0; }
+button { touch-action: manipulation; font-family: inherit; }
 
 #app {
   height: 100vh;
@@ -63,8 +67,8 @@ html, body {
 }
 .buttons { display: flex; gap: 6px; }
 .icon-btn {
-  width: 40px; height: 40px;
-  border: 0; border-radius: 12px;
+  width: 44px; height: 44px;
+  border: 0; border-radius: 14px;
   background: rgba(255,255,255,.1);
   color: var(--cream);
   font-size: 18px;
@@ -189,4 +193,33 @@ html, body {
   #next { width: 42px; height: 42px; }
   .icon-btn { width: 34px; height: 34px; font-size: 15px; }
   #evo { height: 34px; }
+}
+
+@media (max-width: 360px) {
+  #hud { gap: 6px; }
+  .stat .value { font-size: 22px; }
+  .best .value { font-size: 17px; }
+  #next { width: 40px; height: 40px; }
+  .icon-btn { width: 38px; height: 38px; font-size: 15px; }
+  .title { font-size: 36px; }
+  .card { padding: 20px 16px 16px; }
+}
+
+/* phones held sideways: the jar would be tiny, ask to rotate */
+#rotate {
+  display: none;
+  position: fixed; inset: 0;
+  z-index: 20;
+  background: var(--bg1);
+  color: var(--cream);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 600;
+}
+#rotate div { font-size: 56px; margin-bottom: 8px; }
+@media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
+  #rotate { display: flex; }
 }

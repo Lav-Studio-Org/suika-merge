@@ -16,6 +16,8 @@
   const DROP_COOLDOWN = 420;
   const OVER_TIME = 2200;   // ms an orb may sit above the line
   const STEP = 1000 / 60;
+  const IS_TOUCH = matchMedia('(pointer: coarse)').matches;
+  const MAX_PARTICLES = IS_TOUCH ? 220 : 400;
 
   const LEVELS = [
     { r: 17,  color: '#ff6b81' },
@@ -407,6 +409,7 @@
 
   // ---------- FX ----------
   function burst(x, y, color, n, power) {
+    n = Math.min(n, MAX_PARTICLES - particles.length);
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2;
       const s = (1 + Math.random() * 4) * power;
@@ -576,7 +579,7 @@
     const scale = Math.min(sw / W, sh / H);
     cssW = Math.floor(W * scale);
     cssH = Math.floor(H * scale);
-    dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    dpr = Math.min(window.devicePixelRatio || 1, IS_TOUCH ? 2 : 2.5);
     canvas.style.width = cssW + 'px';
     canvas.style.height = cssH + 'px';
     canvas.width = Math.round(cssW * dpr);
@@ -801,26 +804,28 @@
     const rect = canvas.getBoundingClientRect();
     return ((clientX - rect.left) / rect.width) * W;
   }
-  canvas.addEventListener('pointerdown', (e) => {
+  // listen on the whole stage so touches beside the jar still aim
+  const stageEl = $('stage');
+  stageEl.addEventListener('pointerdown', (e) => {
     Sfx.unlock();
     if (state !== 'playing') return;
     pointerDown = true;
     aimX = toWorldX(e.clientX);
-    try { canvas.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+    try { stageEl.setPointerCapture(e.pointerId); } catch { /* ignore */ }
     e.preventDefault();
   });
-  canvas.addEventListener('pointermove', (e) => {
+  stageEl.addEventListener('pointermove', (e) => {
     if (state !== 'playing') return;
     if (e.pointerType === 'mouse' || pointerDown) aimX = toWorldX(e.clientX);
     showAim = true;
   });
-  canvas.addEventListener('pointerup', (e) => {
+  stageEl.addEventListener('pointerup', (e) => {
     if (!pointerDown) return;
     pointerDown = false;
     aimX = toWorldX(e.clientX);
     drop();
   });
-  canvas.addEventListener('pointercancel', () => { pointerDown = false; });
+  stageEl.addEventListener('pointercancel', () => { pointerDown = false; });
 
   const keys = {};
   window.addEventListener('keydown', (e) => {
@@ -855,7 +860,16 @@
   });
 
   document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
-  window.addEventListener('resize', resize);
+  let resizeT = 0;
+  const queueResize = () => { clearTimeout(resizeT); resizeT = setTimeout(resize, 60); };
+  window.addEventListener('resize', queueResize);
+  window.addEventListener('orientationchange', queueResize);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', queueResize);
+  window.addEventListener('blur', pause);
+  document.addEventListener('contextmenu', (e) => e.preventDefault());
+  // stop iOS double-tap / pinch zoom
+  document.addEventListener('gesturestart', (e) => e.preventDefault());
+  document.addEventListener('dblclick', (e) => e.preventDefault());
 
   // ---------- Loop ----------
   let last = performance.now();

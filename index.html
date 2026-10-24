@@ -8,7 +8,13 @@
   <meta name="theme-color" content="#2b1d4e">
   <meta property="og:title" content="Suika Angka">
   <meta property="og:description" content="Jatuhkan angka, gabungkan yang sama. 1+1 jadi 2, 2+2 jadi 3... bisa sampai 11?">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Suika Angka">
+  <meta name="format-detection" content="telephone=no">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-180.png">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -73,6 +79,7 @@
 
       <div id="toast"></div>
     </main>
+    <div id="rotate"><div>📱↻</div><p>Putar HP ke posisi tegak untuk main</p></div>
 
     <footer id="chain">
       <canvas id="evo"></canvas>
@@ -81,5 +88,10 @@
 
   <script src="vendor/matter.min.js"></script>
   <script src="js/game.js"></script>
+  <script>
+    if ('serviceWorker' in navigator && location.protocol === 'https:') {
+      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+    }
+  </script>
 </body>
 </html>

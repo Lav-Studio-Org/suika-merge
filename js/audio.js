@@ -12,19 +12,37 @@
     ducked: false,
 
     unlock() {
-      if (!this.ac) {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if (!AC) return;
-        this.ac = new AC();
-        const comp = this.ac.createDynamicsCompressor();
-        comp.connect(this.ac.destination);
-        this.sfxGain = this.ac.createGain();
-        this.musicGain = this.ac.createGain();
-        this.sfxGain.connect(comp);
-        this.musicGain.connect(comp);
-        this.apply();
+      if (!this.ac) this.build();
+      if (!this.ac) return;
+      // 'interrupted' is what iOS reports after a call or another app takes audio
+      if (this.ac.state === 'suspended' || this.ac.state === 'interrupted') this.ac.resume().catch(() => {});
+    },
+    build() {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      this.ac = new AC();
+      const comp = this.ac.createDynamicsCompressor();
+      comp.connect(this.ac.destination);
+      this.sfxGain = this.ac.createGain();
+      this.musicGain = this.ac.createGain();
+      this.sfxGain.connect(comp);
+      this.musicGain.connect(comp);
+      this.apply();
+      Music.resync();
+    },
+    // Call when the page comes back from the background or from a full-screen ad.
+    // Android WebView can leave the old context "running" but silent after another
+    // activity held the audio output, so in the app we start a fresh context.
+    recover() {
+      if (!this.ac) return;
+      const native = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+      if (native) {
+        const old = this.ac;
+        this.ac = null;
+        old.close().catch(() => {});
+        this.build();
       }
-      if (this.ac.state === 'suspended') this.ac.resume();
+      this.unlock();
     },
     configure({ sound, music }) {
       this.soundOn = sound;
@@ -122,10 +140,17 @@
       this.playing = false;
       clearInterval(this.timer);
     },
+    // keep the schedule in step with the (possibly new) audio clock
+    resync() {
+      if (Sfx.ac) this.nextT = Sfx.ac.currentTime + 0.1;
+    },
     schedule() {
       const ac = Sfx.ac;
       if (!ac) return;
       const eighth = 60 / this.bpm / 2;
+      // after a stall (timers throttled, context swapped) skip ahead instead of
+      // firing every missed note at once
+      if (this.nextT < ac.currentTime - 0.5 || this.nextT > ac.currentTime + 2) this.nextT = ac.currentTime + 0.05;
       const roots = [130.81, 196.0, 220.0, 174.61]; // C G A F
       const scale = [261.63, 293.66, 329.63, 392.0, 440.0, 523.25, 587.33];
       while (this.nextT < ac.currentTime + 0.3) {
@@ -146,4 +171,8 @@
 
   SA.Sfx = Sfx;
   SA.Music = Music;
+
+  // any touch anywhere can (re)start audio, and returning to the page restores it
+  document.addEventListener('pointerdown', () => Sfx.unlock(), { capture: true, passive: true });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) Sfx.recover(); });
 })();

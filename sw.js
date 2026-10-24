@@ -1,5 +1,5 @@
 // Offline cache: serve cached files instantly, refresh them in the background.
-const CACHE = 'suika-angka-v4';
+const CACHE = 'suika-angka-v5';
 const ASSETS = ['./', 'index.html', 'style.css', 'js/meta.js', 'js/audio.js', 'js/ads-config.js', 'js/native.js', 'js/ads.js', 'fonts/fredoka-latin.woff2', 'privacy.html', 'js/game.js', 'vendor/matter.min.js', 'icon.svg', 'icon-180.png', 'manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {

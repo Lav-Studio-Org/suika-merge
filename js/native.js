@@ -16,6 +16,7 @@
     });
     App.addListener('appStateChange', ({ isActive }) => {
       if (!isActive && SA.pause) SA.pause();
+      if (isActive && SA.Sfx) SA.Sfx.recover();
     });
   }
 

@@ -69,7 +69,7 @@
     try {
       ok = kind === 'rewarded' ? await provider.showRewarded(placement) : await provider.showInterstitial(placement);
     } catch { ok = false; }
-    SA.Sfx && SA.Sfx.duck(false);
+    SA.Sfx && (SA.Sfx.recover(), SA.Sfx.duck(false));
     state.lastAdAt = Date.now();
     SA.track(ok ? 'ad_complete' : 'ad_failed', { kind, placement });
     if (!ok && kind === 'rewarded') SA.emit && SA.emit('ad-unavailable', placement);

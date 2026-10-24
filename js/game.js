@@ -2,6 +2,7 @@
   'use strict';
 
   const { Engine, Bodies, Body, Composite, Events } = Matter;
+  const { Sfx, Music, Ads, profile } = SA;
 
   // ---------- Config ----------
   const W = 400;            // world width
@@ -18,22 +19,13 @@
   const STEP = 1000 / 60;
   const IS_TOUCH = matchMedia('(pointer: coarse)').matches;
   const MAX_PARTICLES = IS_TOUCH ? 220 : 400;
+  const REVIVE_SECONDS = 6;
 
-  const LEVELS = [
-    { r: 17,  color: '#ff6b81' },
-    { r: 23,  color: '#ff9f43' },
-    { r: 30,  color: '#fecb3e' },
-    { r: 37,  color: '#9ee04a' },
-    { r: 45,  color: '#1dd1a1' },
-    { r: 54,  color: '#38c6f4' },
-    { r: 63,  color: '#4d7cfe' },
-    { r: 74,  color: '#8e6cff' },
-    { r: 86,  color: '#d66bff' },
-    { r: 99,  color: '#ff7eb6' },
-    { r: 114, color: '#ffc233' },
-  ];
-  const MAX_LEVEL = LEVELS.length - 1;
+  const RADII = [17, 23, 30, 37, 45, 54, 63, 74, 86, 99, 114];
+  const MAX_LEVEL = RADII.length - 1;
   const DROPPABLE = 5;      // levels 1..5 can be dropped
+
+  let theme = SA.themeById(profile.theme);
 
   // ---------- DOM ----------
   const $ = (id) => document.getElementById(id);
@@ -44,16 +36,10 @@
   const evoCanvas = $('evo');
   const evoCtx = evoCanvas.getContext('2d');
   const scoreEl = $('score');
-  const bestEl = $('best');
   const toastEl = $('toast');
+  const stageEl = $('stage');
 
-  // ---------- Storage ----------
-  const store = {
-    get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
-    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* ignore */ } },
-  };
-
-  // ---------- Color helpers ----------
+  // ---------- Helpers ----------
   function shade(hex, amt) {
     const n = parseInt(hex.slice(1), 16);
     let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
@@ -61,100 +47,24 @@
     else { r *= 1 + amt; g *= 1 + amt; b *= 1 + amt; }
     return `rgb(${r | 0},${g | 0},${b | 0})`;
   }
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  function easeOutBack(t) {
+    t = clamp(t, 0, 1);
+    const c1 = 1.70158, c3 = c1 + 1;
+    return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+  }
+  function vibrate(ms) {
+    if (!profile.settings.vibe) return;
+    try { navigator.vibrate && navigator.vibrate(ms); } catch { /* ignore */ }
+  }
+  const coinHTML = '<span class="coin">●</span>';
 
-  // ---------- Sound (synthesized, no assets) ----------
-  const Sfx = {
-    ac: null,
-    master: null,
-    muted: store.get('suika.muted', false),
-    unlock() {
-      if (!this.ac) {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if (!AC) return;
-        this.ac = new AC();
-        this.master = this.ac.createGain();
-        this.master.gain.value = this.muted ? 0 : 0.6;
-        const comp = this.ac.createDynamicsCompressor();
-        this.master.connect(comp).connect(this.ac.destination);
-      }
-      if (this.ac.state === 'suspended') this.ac.resume();
-    },
-    setMuted(m) {
-      this.muted = m;
-      store.set('suika.muted', m);
-      if (this.master) this.master.gain.value = m ? 0 : 0.6;
-    },
-    tone(freq, dur, { type = 'sine', vol = 0.3, slide = 1, delay = 0, attack = 0.005 } = {}) {
-      if (!this.ac || this.muted) return;
-      const t = this.ac.currentTime + delay;
-      const o = this.ac.createOscillator();
-      const g = this.ac.createGain();
-      o.type = type;
-      o.frequency.setValueAtTime(freq, t);
-      o.frequency.exponentialRampToValueAtTime(Math.max(30, freq * slide), t + dur);
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(vol, t + attack);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-      o.connect(g).connect(this.master);
-      o.start(t);
-      o.stop(t + dur + 0.02);
-    },
-    noise(dur, { vol = 0.2, freq = 1200, delay = 0 } = {}) {
-      if (!this.ac || this.muted) return;
-      const t = this.ac.currentTime + delay;
-      const len = Math.floor(this.ac.sampleRate * dur);
-      const buf = this.ac.createBuffer(1, len, this.ac.sampleRate);
-      const d = buf.getChannelData(0);
-      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
-      const src = this.ac.createBufferSource();
-      src.buffer = buf;
-      const f = this.ac.createBiquadFilter();
-      f.type = 'bandpass';
-      f.frequency.value = freq;
-      const g = this.ac.createGain();
-      g.gain.value = vol;
-      src.connect(f).connect(g).connect(this.master);
-      src.start(t);
-    },
-    drop() { this.tone(330, 0.09, { type: 'triangle', vol: 0.18, slide: 0.55 }); },
-    land(v) { this.tone(140 + Math.random() * 40, 0.06, { type: 'sine', vol: Math.min(0.2, v * 0.03), slide: 0.7 }); },
-    merge(level, combo) {
-      const base = 260 * Math.pow(2, (level + Math.min(combo, 6)) / 7);
-      this.tone(base, 0.14, { type: 'sine', vol: 0.32, slide: 1.9 });
-      this.tone(base * 1.5, 0.12, { type: 'triangle', vol: 0.12, slide: 1.6, delay: 0.02 });
-      this.noise(0.06, { vol: 0.12, freq: 2500 });
-      if (level >= 6) {
-        this.tone(base / 2, 0.35, { type: 'sine', vol: 0.3, slide: 0.5 });
-        this.noise(0.25, { vol: 0.18, freq: 500 });
-      }
-    },
-    combo(n) {
-      const notes = [523, 659, 784, 1047, 1319];
-      for (let i = 0; i < Math.min(n, 5); i++) this.tone(notes[i], 0.12, { type: 'square', vol: 0.06, delay: i * 0.05 });
-    },
-    record() {
-      [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.18, { type: 'triangle', vol: 0.18, delay: i * 0.09 }));
-    },
-    warn() { this.tone(880, 0.08, { type: 'square', vol: 0.05 }); },
-    over() {
-      [392, 330, 262, 196].forEach((f, i) => this.tone(f, 0.3, { type: 'triangle', vol: 0.2, delay: i * 0.16, slide: 0.97 }));
-    },
-    pop() { this.tone(500 + Math.random() * 400, 0.08, { type: 'sine', vol: 0.15, slide: 1.8 }); },
-    click() { this.tone(700, 0.05, { type: 'triangle', vol: 0.12 }); },
-  };
-
-  // ---------- Orb sprite cache ----------
-  // Each level is pre-rendered (eyes open / closed) at the current pixel scale.
-  let pxScale = 1;  // device px per world unit
-  const sprites = [];
-
-  function drawOrb(c, level, r, blink, x = 0, y = 0) {
-    const L = LEVELS[level];
-    const col = L.color;
+  // ---------- Orb drawing ----------
+  function drawOrb(c, level, r, blink, x = 0, y = 0, colors = theme.colors) {
+    const col = colors[level];
     c.save();
     c.translate(x, y);
 
-    // body
     const g = c.createRadialGradient(-r * 0.35, -r * 0.4, r * 0.1, 0, 0, r);
     g.addColorStop(0, shade(col, 0.45));
     g.addColorStop(0.55, col);
@@ -167,7 +77,6 @@
     c.strokeStyle = shade(col, -0.38);
     c.stroke();
 
-    // top level gets a sparkle ring
     if (level === MAX_LEVEL) {
       c.lineWidth = r * 0.05;
       c.strokeStyle = 'rgba(255,255,255,.7)';
@@ -232,20 +141,23 @@
     c.restore();
   }
 
+  // pre-rendered sprites (eyes open / closed) at the current pixel scale
+  let pxScale = 1;
+  const sprites = [];
   function buildSprites() {
     sprites.length = 0;
-    LEVELS.forEach((L, i) => {
+    RADII.forEach((r, i) => {
       const pair = [false, true].map((blink) => {
         const pad = 4;
-        const size = Math.ceil((L.r * 2 + pad * 2) * pxScale);
+        const size = Math.ceil((r * 2 + pad * 2) * pxScale);
         const cv = document.createElement('canvas');
         cv.width = cv.height = size;
         const c = cv.getContext('2d');
         c.scale(pxScale, pxScale);
-        drawOrb(c, i, L.r, blink, L.r + pad, L.r + pad);
+        drawOrb(c, i, r, blink, r + pad, r + pad);
         return cv;
       });
-      sprites.push({ open: pair[0], closed: pair[1], half: L.r + 4 });
+      sprites.push({ open: pair[0], closed: pair[1], half: r + 4 });
     });
   }
 
@@ -262,32 +174,35 @@
   ]);
 
   // ---------- State ----------
-  let state = 'start'; // start | playing | paused | dying | over
+  let state = 'home'; // home | playing | revive | dying | over
   let score = 0;
-  let best = store.get('suika.best', 0);
-  let bestLevel = store.get('suika.bestLevel', 0);
   let gameMaxLevel = 0;
   let gameTime = 0;
   let aimX = W / 2;
   let current = 0;
   let nextLevel = 0;
-  let heldAt = 0;        // gameTime when current orb became available
+  let heldAt = 0;
   let canDrop = true;
   let combo = 0;
   let lastMergeAt = -9999;
   let overTimer = 0;
+  let dangerLevel = 0;
   let shake = 0;
   let flash = 0;
   let warned = false;
   let pointerDown = false;
-  let showAim = false;
+  let tool = null;          // 'hammer' while aiming the hammer
+  let revived = false;
+  let earned = 0;
+  let doubled = false;
+  let tutorial = -1;        // -1 off, 0 waiting for first drop, 1 waiting for first merge
+  let attractNext = 0;
   let mergeQueue = [];
   const particles = [];
   const rings = [];
   const texts = [];
 
   function randDroppable() {
-    // early game favours small numbers
     const max = gameTime < 15000 ? 3 : DROPPABLE;
     const w = [5, 4, 3, 2, 1].slice(0, max);
     let t = Math.random() * w.reduce((a, b) => a + b, 0);
@@ -298,7 +213,7 @@
   function orbs() { return Composite.allBodies(world).filter((b) => b.label === 'orb'); }
 
   function makeOrb(level, x, y) {
-    const b = Bodies.circle(x, y, LEVELS[level].r, {
+    const b = Bodies.circle(x, y, RADII[level], {
       label: 'orb',
       restitution: 0.18,
       friction: 0.08,
@@ -310,22 +225,22 @@
     b.level = level;
     b.born = gameTime;
     b.merging = false;
-    b.pop = 0;
     b.blinkAt = gameTime + 1500 + Math.random() * 4000;
     b.landed = false;
     Composite.add(world, b);
     return b;
   }
 
+  const quiet = () => state === 'home';
+
   Events.on(engine, 'collisionStart', (e) => {
     for (const p of e.pairs) {
       collide(p);
-      const a = p.bodyA, b = p.bodyB;
-      for (const o of [a, b]) {
+      for (const o of [p.bodyA, p.bodyB]) {
         if (o.label === 'orb' && !o.landed) {
           o.landed = true;
           const v = Math.hypot(o.velocity.x, o.velocity.y);
-          if (v > 2) Sfx.land(v);
+          if (v > 2 && !quiet()) Sfx.land(v);
         }
       }
     }
@@ -352,15 +267,24 @@
       const vy = (a.velocity.y + b.velocity.y) / 2;
       Composite.remove(world, [a, b]);
 
+      if (quiet()) {
+        if (level < MAX_LEVEL) { const n = makeOrb(level + 1, x, y); n.landed = true; }
+        burst(x, y, theme.colors[Math.min(level + 1, MAX_LEVEL)], 8, 0.6);
+        continue;
+      }
+
       combo = gameTime - lastMergeAt < 1100 ? combo + 1 : 1;
       lastMergeAt = gameTime;
+      SA.missionEvent('merges', 1);
+      if (combo >= 2) SA.missionEvent('combo', combo);
+      profile.totalMerges++;
 
       let gained;
       if (level === MAX_LEVEL) {
         gained = 500 * combo;
-        burst(x, y, LEVELS[level].color, 80, 1.6);
+        burst(x, y, theme.colors[level], 80, 1.6);
         burst(x, y, '#ffffff', 40, 1.2);
-        rings.push({ x, y, r: LEVELS[level].r, life: 0, max: 700, color: '#fff' });
+        rings.push({ x, y, r: RADII[level], life: 0, max: 700, color: '#fff' });
         floatText(x, y, `+${gained}`, '#fff', 34);
         toast('Sempurna! 11 + 11 lenyap ✨');
         shake = 18; flash = 0.6;
@@ -372,25 +296,31 @@
         Body.setVelocity(n, { x: vx * 0.5, y: vy * 0.5 - 1 });
         n.landed = true;
         gained = ((nl + 1) * (nl + 2) / 2) * combo;
-        const col = LEVELS[nl].color;
+        const col = theme.colors[nl];
         burst(x, y, col, 10 + nl * 3, 0.6 + nl * 0.08);
-        rings.push({ x, y, r: LEVELS[nl].r, life: 0, max: 380, color: col });
-        floatText(x, y - LEVELS[nl].r * 0.3, `+${gained}`, '#fff', 16 + nl * 1.6);
-        if (nl >= 6) { shake = Math.max(shake, 4 + nl * 1.2); }
+        rings.push({ x, y, r: RADII[nl], life: 0, max: 380, color: col });
+        floatText(x, y - RADII[nl] * 0.3, `+${gained}`, '#fff', 16 + nl * 1.6);
+        if (nl >= 6) shake = Math.max(shake, 4 + nl * 1.2);
         if (nl >= 8) flash = 0.25;
         Sfx.merge(nl, combo);
+        SA.missionEvent('reach', nl + 1);
         if (nl > gameMaxLevel) {
           gameMaxLevel = nl;
-          if (nl >= 5) toast(`Baru! Angka ${nl + 1} 🎉`);
+          if (nl > profile.bestLevel) {
+            profile.bestLevel = nl;
+            SA.save();
+            drawEvo();
+            if (nl >= 4) toast(`Angka baru ditemukan: ${nl + 1}! 🎉`);
+          } else if (nl >= 6) toast(`Angka ${nl + 1}! 🔥`);
         }
-        if (nl > bestLevel) { bestLevel = nl; store.set('suika.bestLevel', bestLevel); drawEvo(); }
       }
+      if (tutorial === 1) endTutorial();
       if (combo >= 2) {
         floatText(x, y + 26, `Combo x${combo}`, '#ffd23f', 18);
         Sfx.combo(combo);
       }
       addScore(gained);
-      try { navigator.vibrate && navigator.vibrate(level >= 5 ? 25 : 8); } catch { /* ignore */ }
+      vibrate(level >= 5 ? 25 : 8);
     }
   }
 
@@ -401,10 +331,7 @@
     void scoreEl.offsetWidth;
     scoreEl.classList.add('bump');
     setTimeout(() => scoreEl.classList.remove('bump'), 120);
-    if (score > best) {
-      best = score;
-      bestEl.textContent = best;
-    }
+    SA.missionEvent('score', score);
   }
 
   // ---------- FX ----------
@@ -429,11 +356,11 @@
     texts.push({ x, y, str, color, size, life: 0, max: 900 });
   }
   let toastTimer = 0;
-  function toast(msg) {
+  function toast(msg, ms = 1700) {
     toastEl.textContent = msg;
     toastEl.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1600);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), ms);
   }
 
   function updateFx(dt) {
@@ -461,19 +388,35 @@
     flash = Math.max(0, flash - dt / 600);
   }
 
+  // ---------- Overlays ----------
+  const overlays = () => document.querySelectorAll('.overlay');
+  function show(id) { $(id).classList.add('show'); onPanelOpen(id); }
+  function hide(id) { $(id).classList.remove('show'); }
+  function hidePanels() { overlays().forEach((o) => { if (o.id !== 'ov-home') o.classList.remove('show'); }); }
+  function panelOpen() {
+    for (const o of overlays()) if (o.id !== 'ov-home' && o.classList.contains('show')) return o.id;
+    return null;
+  }
+
   // ---------- Game flow ----------
-  function resetGame() {
+  function clearWorld() {
     for (const b of orbs()) Composite.remove(world, b);
-    particles.length = rings.length = texts.length = 0;
     mergeQueue = [];
+  }
+
+  function resetGame() {
+    clearWorld();
+    particles.length = rings.length = texts.length = 0;
     score = 0; gameTime = 0; combo = 0; overTimer = 0; gameMaxLevel = 0;
+    revived = false; doubled = false; tool = null; dangerLevel = 0;
     scoreEl.textContent = '0';
-    bestEl.textContent = best;
     current = randDroppable();
     nextLevel = randDroppable();
     canDrop = true; heldAt = 0;
     aimX = W / 2;
+    tutorial = profile.tutorialDone ? -1 : 0;
     drawNext();
+    syncPowerbar();
   }
 
   function startGame() {
@@ -481,12 +424,29 @@
     Sfx.click();
     resetGame();
     state = 'playing';
-    hideOverlays();
+    document.body.classList.remove('at-home');
+    hidePanels();
+    hide('ov-home');
+    if (profile.settings.music) Music.start();
+    SA.track('game_start', { games: profile.games });
+  }
+
+  function goHome() {
+    state = 'home';
+    tool = null;
+    $('tool-hint').classList.remove('show');
+    hidePanels();
+    clearWorld();
+    gameTime = 0;
+    document.body.classList.add('at-home');
+    show('ov-home');
+    Music.stop();
+    refreshHome();
   }
 
   function drop() {
-    if (state !== 'playing' || !canDrop) return;
-    const r = LEVELS[current].r;
+    if (state !== 'playing' || !canDrop || panelOpen() || tool) return;
+    const r = RADII[current];
     const x = clamp(aimX, r + 1, W - r - 1);
     const b = makeOrb(current, x, DROP_Y);
     Body.setAngle(b, (Math.random() - 0.5) * 0.6);
@@ -496,14 +456,22 @@
     current = nextLevel;
     nextLevel = randDroppable();
     drawNext();
+    if (tutorial === 0) tutorial = 1;
     setTimeout(() => { canDrop = true; heldAt = gameTime; }, DROP_COOLDOWN);
+  }
+
+  function endTutorial() {
+    tutorial = -1;
+    profile.tutorialDone = true;
+    SA.save();
+    toast('Mantap! Terus gabungkan 👍');
   }
 
   function checkOver(dt) {
     let above = false, near = false;
     for (const b of orbs()) {
       if (b.merging || gameTime - b.born < 1200) continue;
-      const top = b.position.y - LEVELS[b.level].r;
+      const top = b.position.y - RADII[b.level];
       if (top < LINE_Y) above = true;
       if (top < LINE_Y + 70) near = true;
     }
@@ -515,19 +483,67 @@
       warned = false;
     }
     dangerLevel = above ? 1 : near ? 0.4 : 0;
-    if (overTimer > OVER_TIME) gameOver();
+    if (overTimer > OVER_TIME) onLose();
   }
-  let dangerLevel = 0;
+
+  function onLose() {
+    overTimer = 0;
+    tool = null;
+    $('tool-hint').classList.remove('show');
+    // one second chance per game, via rewarded ad
+    if (!revived && score > 0) {
+      state = 'revive';
+      offerRevive();
+    } else {
+      gameOver();
+    }
+  }
+
+  let reviveTimer = 0;
+  function offerRevive() {
+    show('ov-revive');
+    const bar = $('revive-bar');
+    bar.style.transition = 'none';
+    bar.style.width = '100%';
+    void bar.offsetWidth;
+    bar.style.transition = `width ${REVIVE_SECONDS}s linear`;
+    bar.style.width = '0%';
+    clearTimeout(reviveTimer);
+    reviveTimer = setTimeout(() => { if (state === 'revive') { hide('ov-revive'); gameOver(); } }, REVIVE_SECONDS * 1000);
+  }
+
+  function doRevive() {
+    revived = true;
+    hide('ov-revive');
+    // clear everything that pokes into the top part of the jar
+    const cut = LINE_Y + 170;
+    const list = orbs().filter((b) => b.position.y - RADII[b.level] < cut).sort((a, b) => a.position.y - b.position.y);
+    list.forEach((b, i) => {
+      setTimeout(() => {
+        burst(b.position.x, b.position.y, theme.colors[b.level], 16, 0.9);
+        Composite.remove(world, b);
+        Sfx.pop();
+      }, i * 70);
+    });
+    setTimeout(() => {
+      state = 'playing';
+      overTimer = 0;
+      Sfx.revive();
+      toast('Lanjut! 💪');
+    }, list.length * 70 + 200);
+  }
 
   function gameOver() {
     state = 'dying';
+    clearTimeout(reviveTimer);
     Sfx.over();
+    Music.stop();
     const list = orbs().sort((a, b) => a.position.y - b.position.y);
     let i = 0;
     const step = () => {
       if (i >= list.length) { setTimeout(showOver, 350); return; }
       const b = list[i++];
-      burst(b.position.x, b.position.y, LEVELS[b.level].color, 14, 0.8);
+      burst(b.position.x, b.position.y, theme.colors[b.level], 14, 0.8);
       Composite.remove(world, b);
       Sfx.pop();
       setTimeout(step, Math.max(30, 110 - i * 4));
@@ -537,45 +553,130 @@
 
   function showOver() {
     state = 'over';
-    const prevBest = store.get('suika.best', 0);
+    const prevBest = profile.best;
     const isRecord = score > prevBest;
-    if (isRecord) { store.set('suika.best', score); }
+    if (isRecord) profile.best = score;
+    profile.games++;
+    earned = Math.floor(score / 25) + Math.max(0, gameMaxLevel - 4) * 5;
+    SA.addCoins(earned);
+    SA.missionEvent('games', 1);
+    SA.missionEvent('score', score);
+    if (tutorial !== -1) { profile.tutorialDone = true; tutorial = -1; }
+    SA.save();
+    Ads.gameFinished();
+    SA.track('game_over', { score, maxLevel: gameMaxLevel + 1, revived });
+
     $('final-score').textContent = score;
     $('final-best').innerHTML = isRecord && score > 0
-      ? '<span class="new">Rekor baru!</span>'
+      ? '<span class="new">Rekor baru! 🏆</span>'
       : `Terbaik: <b>${Math.max(prevBest, score)}</b>`;
     $('final-max').innerHTML = `Angka tertinggi: <b>${gameMaxLevel + 1}</b>`;
+    $('earned').textContent = `+${earned}`;
+    const dbl = $('btn-double');
+    dbl.disabled = earned <= 0;
+    dbl.style.display = earned > 0 ? '' : 'none';
+    dbl.textContent = '▶ Ambil 2x koin';
     if (isRecord && score > 0) Sfx.record();
-    showOverlay('overlay-over');
+    show('ov-over');
   }
 
-  // ---------- Overlays ----------
-  function showOverlay(id) {
-    hideOverlays();
-    $(id).classList.add('show');
-  }
-  function hideOverlays() {
-    document.querySelectorAll('.overlay').forEach((o) => o.classList.remove('show'));
+  // ---------- Power-ups ----------
+  function syncPowerbar() {
+    document.querySelectorAll('.pw').forEach((btn) => {
+      const id = btn.dataset.power;
+      const n = profile.power[id] || 0;
+      const pc = btn.querySelector('.pc');
+      pc.className = 'pc';
+      if (n > 0) pc.textContent = n;
+      else { pc.textContent = '▶'; pc.classList.add('ad'); }
+      btn.classList.toggle('active', tool === id);
+    });
   }
 
-  function pause() {
-    if (state !== 'playing') return;
-    state = 'paused';
-    showOverlay('overlay-pause');
+  function usePower(id) {
+    if (state !== 'playing' || panelOpen()) return;
+    Sfx.unlock();
+    if (tool === id) { cancelTool(); return; }
+    if ((profile.power[id] || 0) <= 0) { openPowerOffer(id); return; }
+    if (id === 'hammer') {
+      if (!orbs().length) { toast('Belum ada bola'); return; }
+      tool = 'hammer';
+      $('tool-hint').classList.add('show');
+      Sfx.click();
+      syncPowerbar();
+      return;
+    }
+    if (id === 'shake') {
+      if (!orbs().length) { toast('Belum ada bola'); return; }
+      for (const b of orbs()) {
+        Body.setVelocity(b, { x: (Math.random() - 0.5) * 9, y: -4 - Math.random() * 7 });
+        Body.setAngularVelocity(b, (Math.random() - 0.5) * 0.3);
+      }
+      shake = 14;
+      Sfx.whoosh();
+      vibrate(40);
+    }
+    if (id === 'swap') {
+      if (current === nextLevel) { toast('Bolanya sama'); return; }
+      [current, nextLevel] = [nextLevel, current];
+      heldAt = gameTime;
+      drawNext();
+      Sfx.swap();
+    }
+    consumePower(id);
   }
-  function resume() {
-    if (state !== 'paused') return;
-    state = 'playing';
-    hideOverlays();
-    last = performance.now();
+
+  function consumePower(id) {
+    profile.power[id]--;
+    SA.save();
+    SA.missionEvent('power', 1);
+    SA.track('power_use', { id });
+    syncPowerbar();
+  }
+
+  function cancelTool() {
+    tool = null;
+    $('tool-hint').classList.remove('show');
+    syncPowerbar();
+  }
+
+  function smashAt(wx, wy) {
+    let hit = null, bestD = Infinity;
+    for (const b of orbs()) {
+      const d = Math.hypot(b.position.x - wx, b.position.y - wy);
+      if (d < RADII[b.level] + 8 && d < bestD) { hit = b; bestD = d; }
+    }
+    if (!hit) return;
+    burst(hit.position.x, hit.position.y, theme.colors[hit.level], 30, 1.1);
+    rings.push({ x: hit.position.x, y: hit.position.y, r: RADII[hit.level], life: 0, max: 400, color: '#fff' });
+    Composite.remove(world, hit);
+    shake = 10;
+    Sfx.smash();
+    vibrate(35);
+    cancelTool();
+    consumePower('hammer');
+  }
+
+  let offerId = null;
+  function openPowerOffer(id) {
+    offerId = id;
+    const p = SA.POWERS[id];
+    $('offer-icon').textContent = p.icon;
+    $('offer-title').textContent = `${p.name} habis`;
+    $('offer-text').textContent = p.desc;
+    $('offer-ad').textContent = '▶ Dapatkan 1 gratis';
+    const buy = $('offer-buy');
+    buy.innerHTML = `Beli dengan ${coinHTML} ${p.price}`;
+    buy.disabled = profile.coins < p.price;
+    buy.style.opacity = buy.disabled ? 0.4 : 1;
+    show('ov-offer');
   }
 
   // ---------- Rendering ----------
   let cssW = 0, cssH = 0, dpr = 1;
 
   function resize() {
-    const stage = $('stage');
-    const sw = stage.clientWidth, sh = stage.clientHeight;
+    const sw = stageEl.clientWidth, sh = stageEl.clientHeight;
     const scale = Math.min(sw / W, sh / H);
     cssW = Math.floor(W * scale);
     cssH = Math.floor(H * scale);
@@ -584,8 +685,7 @@
     canvas.style.height = cssH + 'px';
     canvas.width = Math.round(cssW * dpr);
     canvas.height = Math.round(cssH * dpr);
-    document.querySelectorAll('.overlay').forEach((o) => {
-      o.style.inset = 'auto';
+    overlays().forEach((o) => {
       o.style.width = cssW + 'px';
       o.style.height = cssH + 'px';
     });
@@ -596,26 +696,22 @@
   }
 
   function drawBackground(c) {
-    // jar interior
     const g = c.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, '#fff3dc');
-    g.addColorStop(1, '#ffe2b8');
+    g.addColorStop(0, theme.bg[0]);
+    g.addColorStop(1, theme.bg[1]);
     c.fillStyle = g;
     c.fillRect(0, 0, W, H);
 
-    // soft dots pattern
-    c.fillStyle = 'rgba(255,170,90,.12)';
+    c.fillStyle = theme.dots;
     for (let y = 20; y < H; y += 40) {
       for (let x = (y / 40) % 2 ? 20 : 40; x < W; x += 40) {
         c.beginPath(); c.arc(x, y, 3, 0, Math.PI * 2); c.fill();
       }
     }
-
-    // floor
-    c.fillStyle = '#e8b57a';
+    c.fillStyle = theme.floor;
     c.fillRect(0, H - 6, W, 6);
 
-    // danger line
+    if (state === 'home') return;
     const t = performance.now() / 1000;
     const a = 0.35 + dangerLevel * (0.4 + 0.25 * Math.sin(t * 12));
     c.save();
@@ -653,21 +749,21 @@
     c.setTransform(k, 0, 0, k, sx * k, sy * k);
 
     drawBackground(c);
+    const now = performance.now();
 
     // aim guide + held orb
-    if (state === 'playing') {
-      const r = LEVELS[current].r;
+    if (state === 'playing' && !tool) {
+      const r = RADII[current];
       const x = clamp(aimX, r + 1, W - r - 1);
       if (canDrop) {
         c.save();
-        c.strokeStyle = 'rgba(120,70,40,.25)';
+        c.strokeStyle = theme.guide;
         c.lineWidth = 2;
         c.setLineDash([4, 8]);
         c.beginPath(); c.moveTo(x, DROP_Y + r); c.lineTo(x, H); c.stroke();
         c.restore();
-        const pop = Math.min(1, (gameTime - heldAt) / 180);
-        const s = easeOutBack(pop);
-        drawSprite(c, current, x, DROP_Y + Math.sin(performance.now() / 300) * 2, 0, Math.max(0.01, s), false);
+        const s = easeOutBack(Math.min(1, (gameTime - heldAt) / 180));
+        drawSprite(c, current, x, DROP_Y + Math.sin(now / 300) * 2, 0, Math.max(0.01, s), false);
       }
     }
 
@@ -681,6 +777,11 @@
         if (gameTime > b.blinkAt + 130) b.blinkAt = gameTime + 2000 + Math.random() * 4000;
       }
       drawSprite(c, b.level, b.position.x, b.position.y, b.angle, s, blink || state === 'dying');
+      if (tool === 'hammer') {
+        c.strokeStyle = `rgba(255,255,255,${0.5 + 0.4 * Math.sin(now / 150)})`;
+        c.lineWidth = 3;
+        c.beginPath(); c.arc(b.position.x, b.position.y, RADII[b.level] + 3, 0, Math.PI * 2); c.stroke();
+      }
     }
 
     // rings
@@ -728,10 +829,41 @@
     }
     c.globalAlpha = 1;
 
+    // first-game coach marks
+    if (state === 'playing' && tutorial >= 0 && !panelOpen()) drawTutorial(c, now);
+
     if (flash > 0) {
       c.fillStyle = `rgba(255,255,255,${flash})`;
       c.fillRect(-20, -20, W + 40, H + 40);
     }
+  }
+
+  function drawTutorial(c, now) {
+    const msg = tutorial === 0 ? 'Geser untuk membidik, lepas untuk jatuhkan' : 'Gabungkan dua angka yang sama!';
+    c.font = '600 17px Fredoka, ui-rounded, system-ui, sans-serif';
+    const w = c.measureText(msg).width + 28;
+    const y = H * 0.42;
+    c.fillStyle = 'rgba(42,24,64,.85)';
+    roundRect(c, W / 2 - w / 2, y - 18, w, 36, 18);
+    c.fill();
+    c.fillStyle = '#fff';
+    c.fillText(msg, W / 2, y + 1);
+    if (tutorial === 0) {
+      const hx = W / 2 + Math.sin(now / 500) * 110;
+      c.font = '40px system-ui, sans-serif';
+      c.fillText('👆', hx, y + 60);
+      if (canDrop && !pointerDown) aimX = hx;
+    }
+  }
+
+  function roundRect(c, x, y, w, h, r) {
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
   }
 
   function star(c, r) {
@@ -746,10 +878,10 @@
   }
 
   function drawNext() {
-    const size = 64 * 2;
+    const size = 128;
     nextCanvas.width = nextCanvas.height = size;
     nextCtx.clearRect(0, 0, size, size);
-    const r = LEVELS[nextLevel].r;
+    const r = RADII[nextLevel];
     const target = 24 + nextLevel * 4.5;
     nextCtx.save();
     nextCtx.translate(size / 2, size / 2);
@@ -759,70 +891,371 @@
   }
 
   function drawEvo() {
-    const w = evoCanvas.clientWidth || 400, h = evoCanvas.clientHeight || 44;
+    const w = evoCanvas.clientWidth || 400, h = evoCanvas.clientHeight || 40;
     const d = Math.min(window.devicePixelRatio || 1, 2.5);
     evoCanvas.width = Math.round(w * d);
     evoCanvas.height = Math.round(h * d);
     const c = evoCtx;
     c.setTransform(d, 0, 0, d, 0, 0);
     c.clearRect(0, 0, w, h);
-    const n = LEVELS.length;
+    const n = RADII.length;
     const gap = w / n;
     for (let i = 0; i < n; i++) {
       const rr = Math.min(gap * 0.46, h * 0.46) * (0.62 + 0.38 * (i / (n - 1)));
-      c.globalAlpha = i <= bestLevel ? 1 : 0.28;
+      c.globalAlpha = i <= profile.bestLevel ? 1 : 0.28;
       drawOrb(c, i, rr, false, gap * (i + 0.5), h / 2);
     }
     c.globalAlpha = 1;
   }
 
   function drawHero() {
-    const hc = $('hero').getContext('2d');
-    const w = 300, h = 90;
-    $('hero').width = w * 2; $('hero').height = h * 2;
+    const el = $('hero');
+    const hc = el.getContext('2d');
+    el.width = 600; el.height = 180;
     hc.scale(2, 2);
-    hc.font = '700 26px Fredoka, ui-rounded, system-ui, sans-serif';
+    hc.font = '700 28px Fredoka, ui-rounded, system-ui, sans-serif';
     hc.textAlign = 'center'; hc.textBaseline = 'middle';
-    hc.fillStyle = '#2a1840';
+    hc.fillStyle = '#fff';
+    hc.strokeStyle = 'rgba(42,24,64,.6)';
+    hc.lineWidth = 5;
+    hc.lineJoin = 'round';
     drawOrb(hc, 0, 24, false, 40, 50);
-    hc.fillText('+', 88, 50);
+    hc.strokeText('+', 88, 50); hc.fillText('+', 88, 50);
     drawOrb(hc, 0, 24, false, 136, 50);
-    hc.fillText('=', 186, 50);
+    hc.strokeText('=', 186, 50); hc.fillText('=', 186, 50);
     drawOrb(hc, 1, 34, false, 246, 48);
   }
 
-  // ---------- Utils ----------
-  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
-  function easeOutBack(t) {
-    t = clamp(t, 0, 1);
-    const c1 = 1.70158, c3 = c1 + 1;
-    return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+  // ---------- Menus: home, daily, missions, shop, settings ----------
+  function setCoins() {
+    document.querySelectorAll('.coins-val').forEach((el) => {
+      el.textContent = profile.coins;
+      const chip = el.parentElement;
+      chip.classList.remove('bump'); void chip.offsetWidth; chip.classList.add('bump');
+    });
+  }
+  SA.on('coins', setCoins);
+  SA.on('mission-done', (m) => { if (state === 'playing') toast(`Misi selesai: ${m.text} 🎯`, 2200); refreshBadges(); });
+
+  function refreshBadges() {
+    const d = $('badge-daily');
+    d.classList.toggle('on', SA.dailyAvailable());
+    d.textContent = '!';
+    const n = SA.missionsClaimable();
+    const m = $('badge-missions');
+    m.classList.toggle('on', n > 0);
+    m.textContent = n;
   }
 
-  // ---------- Input ----------
-  function toWorldX(clientX) {
-    const rect = canvas.getBoundingClientRect();
-    return ((clientX - rect.left) / rect.width) * W;
+  function refreshHome() {
+    $('home-best').textContent = profile.best;
+    setCoins();
+    refreshBadges();
+    drawEvo();
   }
-  // listen on the whole stage so touches beside the jar still aim
-  const stageEl = $('stage');
+
+  function onPanelOpen(id) {
+    if (id === 'ov-daily') renderDaily();
+    if (id === 'ov-missions') renderMissions();
+    if (id === 'ov-shop') renderShop();
+    if (id === 'ov-settings' || id === 'ov-pause') syncSettings();
+  }
+
+  function renderDaily() {
+    const grid = $('daily-grid');
+    const available = SA.dailyAvailable();
+    const today = available ? SA.dailyNextStreak() : profile.daily.streak;
+    grid.innerHTML = SA.DAILY_REWARDS.map((amt, i) => {
+      const day = i + 1;
+      const cls = ['day'];
+      if (day < today || (!available && day === today)) cls.push('got');
+      if (available && day === today) cls.push('today');
+      if (day === 7) cls.push('big');
+      return `<div class="${cls.join(' ')}">Hari ${day}${coinHTML}<b>${amt}</b></div>`;
+    }).join('');
+    $('ov-daily').classList.toggle('daily-claimed', !available);
+  }
+
+  async function claimDaily(withAd) {
+    if (!SA.dailyAvailable()) return;
+    if (withAd && !(await Ads.rewarded('daily_double'))) return;
+    const amt = SA.claimDaily(withAd ? 2 : 1);
+    Sfx.coin();
+    toast(`+${amt} koin!`);
+    renderDaily();
+    refreshBadges();
+  }
+
+  function renderMissions() {
+    SA.ensureMissions();
+    $('mission-list').innerHTML = profile.missions.list.map((m, i) => {
+      const done = SA.missionDone(m);
+      const pct = Math.round((m.progress / m.target) * 100);
+      let acts = '';
+      if (done && !m.claimed) {
+        acts = `<div class="acts"><button class="claim" data-claim="${i}">Ambil</button><button class="claim2" data-claim2="${i}">▶ Ambil 2x</button></div>`;
+      }
+      return `<li class="mission${m.claimed ? ' claimed' : ''}">
+        <div class="mt"><span>${m.claimed ? '✅ ' : ''}${m.text}</span><span class="mr">${coinHTML}${m.reward}</span></div>
+        <div class="bar"><i style="width:${pct}%"></i></div>
+        <div class="mp">${m.claimed ? 'Sudah diambil' : `${m.progress} / ${m.target}`}</div>
+        ${acts}
+      </li>`;
+    }).join('');
+  }
+
+  $('mission-list').addEventListener('click', async (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    const withAd = b.dataset.claim2 !== undefined;
+    const i = withAd ? b.dataset.claim2 : b.dataset.claim;
+    if (withAd && !(await Ads.rewarded('mission_double'))) return;
+    const amt = SA.claimMission(+i, withAd ? 2 : 1);
+    if (amt) { Sfx.coin(); toast(`+${amt} koin!`); }
+    renderMissions();
+    refreshBadges();
+  });
+
+  function themePreview(t) {
+    const cv = document.createElement('canvas');
+    cv.width = 240; cv.height = 120;
+    const c = cv.getContext('2d');
+    const g = c.createLinearGradient(0, 0, 0, 120);
+    g.addColorStop(0, t.bg[0]); g.addColorStop(1, t.bg[1]);
+    c.fillStyle = g; c.fillRect(0, 0, 240, 120);
+    c.fillStyle = t.floor; c.fillRect(0, 112, 240, 8);
+    drawOrb(c, 0, 18, false, 34, 92, t.colors);
+    drawOrb(c, 2, 26, false, 84, 84, t.colors);
+    drawOrb(c, 5, 38, false, 154, 72, t.colors);
+    drawOrb(c, 1, 21, false, 214, 89, t.colors);
+    return cv;
+  }
+
+  function renderShop() {
+    const left = SA.freeCoinsLeft();
+    $('free-left').textContent = `${left}/${SA.FREE_COINS_PER_DAY}`;
+    $('btn-free-coins').disabled = left <= 0;
+
+    const list = $('theme-list');
+    list.innerHTML = '';
+    SA.THEMES.forEach((t) => {
+      const owned = profile.owned.includes(t.id);
+      const using = profile.theme === t.id;
+      const btn = document.createElement('button');
+      btn.className = 'theme' + (using ? ' using' : '') + (owned ? '' : ' locked');
+      btn.appendChild(themePreview(t));
+      const name = document.createElement('span');
+      name.textContent = t.name;
+      btn.appendChild(name);
+      const tag = document.createElement('span');
+      tag.className = 'tp';
+      if (using) tag.textContent = 'Dipakai';
+      else if (owned) tag.textContent = 'Pakai';
+      else {
+        tag.innerHTML = `${coinHTML}${t.price}`;
+        if (profile.coins < t.price) tag.classList.add('cant');
+      }
+      btn.appendChild(tag);
+      btn.addEventListener('click', () => {
+        if (using) return;
+        if (!owned) {
+          if (profile.coins < t.price) { toast(`Koin kurang ${t.price - profile.coins}`); return; }
+          SA.addCoins(-t.price);
+          profile.owned.push(t.id);
+          Sfx.coin();
+          SA.track('theme_buy', { id: t.id });
+        }
+        profile.theme = t.id;
+        SA.save();
+        setTheme(t.id);
+        Sfx.click();
+        renderShop();
+      });
+      list.appendChild(btn);
+    });
+
+    $('power-shop').innerHTML = Object.entries(SA.POWERS).map(([id, p]) => `
+      <div class="pshop">
+        <span class="pi">${p.icon}</span>
+        <span class="pd"><b>${p.name} <small>(punya ${profile.power[id] || 0})</small></b>${p.desc}</span>
+        <button data-buy="${id}" ${profile.coins < p.price ? 'disabled' : ''}>${coinHTML}${p.price}</button>
+      </div>`).join('');
+  }
+
+  $('power-shop').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-buy]');
+    if (!b) return;
+    const id = b.dataset.buy;
+    const p = SA.POWERS[id];
+    if (profile.coins < p.price) return;
+    SA.addCoins(-p.price);
+    profile.power[id] = (profile.power[id] || 0) + 1;
+    SA.save();
+    Sfx.coin();
+    toast(`+1 ${p.name}`);
+    renderShop();
+    syncPowerbar();
+  });
+
+  $('btn-free-coins').addEventListener('click', async () => {
+    if (SA.freeCoinsLeft() <= 0) return;
+    if (!(await Ads.rewarded('free_coins'))) return;
+    SA.takeFreeCoins();
+    Sfx.coin();
+    toast(`+${SA.FREE_COINS} koin!`);
+    renderShop();
+  });
+
+  function setTheme(id) {
+    theme = SA.themeById(id);
+    buildSprites();
+    drawNext();
+    drawEvo();
+    drawHero();
+  }
+
+  function syncSettings() {
+    document.querySelectorAll('[data-setting]').forEach((el) => { el.checked = !!profile.settings[el.dataset.setting]; });
+  }
+  document.querySelectorAll('[data-setting]').forEach((el) => {
+    el.addEventListener('change', () => {
+      profile.settings[el.dataset.setting] = el.checked;
+      SA.save();
+      syncSettings();
+      Sfx.unlock();
+      Sfx.configure(profile.settings);
+      if (el.dataset.setting === 'music' && !el.checked) Music.stop();
+      Sfx.click();
+    });
+  });
+
+  $('btn-reset').addEventListener('click', () => {
+    if (!confirm('Hapus semua data? Skor, koin, dan tema akan hilang.')) return;
+    try { localStorage.removeItem('suika.profile.v1'); } catch { /* ignore */ }
+    location.reload();
+  });
+
+  // ---------- Buttons ----------
+  document.addEventListener('click', (e) => {
+    const open = e.target.closest('[data-open]');
+    if (open) { Sfx.unlock(); Sfx.click(); show(open.dataset.open); return; }
+    const close = e.target.closest('[data-close]');
+    if (close) { Sfx.click(); hide(close.closest('.overlay').id); }
+  });
+
+  $('btn-play').addEventListener('click', startGame);
+  $('btn-pause').addEventListener('click', () => { Sfx.unlock(); Sfx.click(); togglePause(); });
+  $('btn-resume').addEventListener('click', () => { Sfx.click(); resume(); });
+  $('btn-restart').addEventListener('click', startGame);
+  $('btn-quit').addEventListener('click', () => { Sfx.click(); goHome(); });
+  $('btn-revive').addEventListener('click', async () => {
+    clearTimeout(reviveTimer);
+    if (await Ads.rewarded('revive')) doRevive();
+    else { hide('ov-revive'); gameOver(); }
+  });
+  $('btn-revive-skip').addEventListener('click', () => { clearTimeout(reviveTimer); hide('ov-revive'); gameOver(); });
+  $('btn-double').addEventListener('click', async () => {
+    if (doubled || earned <= 0) return;
+    if (!(await Ads.rewarded('double_coins'))) return;
+    doubled = true;
+    SA.addCoins(earned);
+    $('earned').textContent = `+${earned * 2}`;
+    const b = $('btn-double');
+    b.disabled = true;
+    b.textContent = '✓ Koin dilipatgandakan';
+    Sfx.coin();
+  });
+  $('btn-again').addEventListener('click', async () => { await Ads.maybeInterstitial('game_over'); startGame(); });
+  $('btn-menu').addEventListener('click', async () => { await Ads.maybeInterstitial('game_over'); goHome(); });
+  $('btn-daily').addEventListener('click', () => claimDaily(false));
+  $('btn-daily-2x').addEventListener('click', () => claimDaily(true));
+  $('offer-ad').addEventListener('click', async () => {
+    const id = offerId;
+    if (!(await Ads.rewarded('power_' + id))) return;
+    profile.power[id] = (profile.power[id] || 0) + 1;
+    SA.save();
+    hide('ov-offer');
+    syncPowerbar();
+    toast(`+1 ${SA.POWERS[id].name}!`);
+  });
+  $('offer-buy').addEventListener('click', () => {
+    const id = offerId, p = SA.POWERS[id];
+    if (profile.coins < p.price) return;
+    SA.addCoins(-p.price);
+    profile.power[id] = (profile.power[id] || 0) + 1;
+    SA.save();
+    hide('ov-offer');
+    syncPowerbar();
+    Sfx.coin();
+  });
+  document.querySelectorAll('.pw').forEach((b) => b.addEventListener('click', () => usePower(b.dataset.power)));
+  $('tool-cancel').addEventListener('click', (e) => { e.stopPropagation(); cancelTool(); });
+  $('tool-cancel').addEventListener('pointerdown', (e) => e.stopPropagation());
+  $('btn-share').addEventListener('click', async () => {
+    const text = `Aku dapat skor ${score} di Suika Angka (angka tertinggi ${gameMaxLevel + 1})! Coba kalahkan:`;
+    const url = 'https://lavaruz.github.io/suika-merge/';
+    try {
+      if (navigator.share) { await navigator.share({ title: 'Suika Angka', text, url }); return; }
+      await navigator.clipboard.writeText(`${text} ${url}`);
+      toast('Link disalin!');
+    } catch { /* cancelled */ }
+  });
+
+  function pause() {
+    if (state !== 'playing' || panelOpen()) return;
+    show('ov-pause');
+    Music.stop();
+  }
+  function resume() {
+    hide('ov-pause');
+    if (state === 'playing' && profile.settings.music) Music.start();
+    last = performance.now();
+  }
+  function togglePause() { if (panelOpen() === 'ov-pause') resume(); else pause(); }
+
+  // Android back button / browser back
+  SA.handleBack = () => {
+    const p = panelOpen();
+    if (p === 'ov-pause') { resume(); return true; }
+    if (p === 'ov-revive') { $('btn-revive-skip').click(); return true; }
+    if (p === 'ov-over') { $('btn-menu').click(); return true; }
+    if (p) { hide(p); return true; }
+    if (tool) { cancelTool(); return true; }
+    if (state === 'playing') { pause(); return true; }
+    return false; // at home: let the app exit
+  };
+  if (!window.Capacitor) {
+    try {
+      history.pushState({ g: 1 }, '');
+      window.addEventListener('popstate', () => { SA.handleBack(); history.pushState({ g: 1 }, ''); });
+    } catch { /* ignore */ }
+  }
+  SA.pause = pause;
+
+  // ---------- Input ----------
+  function toWorld(e) {
+    const rect = canvas.getBoundingClientRect();
+    return { x: ((e.clientX - rect.left) / rect.width) * W, y: ((e.clientY - rect.top) / rect.height) * H };
+  }
   stageEl.addEventListener('pointerdown', (e) => {
     Sfx.unlock();
-    if (state !== 'playing') return;
+    if (state !== 'playing' || panelOpen()) return;
+    if (e.target.closest('#tool-hint')) return;
+    const p = toWorld(e);
+    if (tool === 'hammer') { smashAt(p.x, p.y); return; }
     pointerDown = true;
-    aimX = toWorldX(e.clientX);
+    aimX = p.x;
     try { stageEl.setPointerCapture(e.pointerId); } catch { /* ignore */ }
     e.preventDefault();
   });
   stageEl.addEventListener('pointermove', (e) => {
-    if (state !== 'playing') return;
-    if (e.pointerType === 'mouse' || pointerDown) aimX = toWorldX(e.clientX);
-    showAim = true;
+    if (state !== 'playing' || tool) return;
+    if (e.pointerType === 'mouse' || pointerDown) aimX = toWorld(e).x;
   });
   stageEl.addEventListener('pointerup', (e) => {
     if (!pointerDown) return;
     pointerDown = false;
-    aimX = toWorldX(e.clientX);
+    aimX = toWorld(e).x;
     drop();
   });
   stageEl.addEventListener('pointercancel', () => { pointerDown = false; });
@@ -831,47 +1264,45 @@
   window.addEventListener('keydown', (e) => {
     keys[e.key] = true;
     if (e.key === ' ' || e.key === 'Enter') {
+      if (e.target.closest && e.target.closest('button')) return;
       e.preventDefault();
-      if (state === 'start' || state === 'over') startGame();
-      else if (state === 'playing') drop();
-      else if (state === 'paused') resume();
+      if (state === 'home' && !panelOpen()) startGame();
+      else if (state === 'playing') { if (panelOpen() === 'ov-pause') resume(); else drop(); }
     }
-    if (e.key === 'Escape' || e.key === 'p') { state === 'paused' ? resume() : pause(); }
+    if (e.key === 'Escape' || e.key === 'p') SA.handleBack();
+    if (state === 'playing' && !panelOpen()) {
+      if (e.key === '1') usePower('hammer');
+      if (e.key === '2') usePower('shake');
+      if (e.key === '3') usePower('swap');
+    }
   });
   window.addEventListener('keyup', (e) => { keys[e.key] = false; });
 
-  $('btn-start').addEventListener('click', startGame);
-  $('btn-again').addEventListener('click', startGame);
-  $('btn-resume').addEventListener('click', () => { Sfx.click(); resume(); });
-  $('btn-restart').addEventListener('click', startGame);
-  $('btn-pause').addEventListener('click', () => { Sfx.unlock(); Sfx.click(); state === 'paused' ? resume() : pause(); });
-  const soundBtn = $('btn-sound');
-  const syncSound = () => { soundBtn.textContent = Sfx.muted ? '🔇' : '🔊'; };
-  syncSound();
-  soundBtn.addEventListener('click', () => { Sfx.unlock(); Sfx.setMuted(!Sfx.muted); syncSound(); Sfx.click(); });
-  $('btn-share').addEventListener('click', async () => {
-    const text = `Aku dapat skor ${score} di Suika Angka (angka tertinggi ${gameMaxLevel + 1})! Coba kalahkan:`;
-    const url = location.href.split('#')[0];
-    try {
-      if (navigator.share) { await navigator.share({ title: 'Suika Angka', text, url }); return; }
-      await navigator.clipboard.writeText(`${text} ${url}`);
-      toast('Link disalin!');
-    } catch { /* cancelled */ }
-  });
-
   document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+  window.addEventListener('blur', pause);
+  document.addEventListener('contextmenu', (e) => e.preventDefault());
+  document.addEventListener('gesturestart', (e) => e.preventDefault());
+  document.addEventListener('dblclick', (e) => e.preventDefault());
+
   let resizeT = 0;
   const queueResize = () => { clearTimeout(resizeT); resizeT = setTimeout(resize, 60); };
   window.addEventListener('resize', queueResize);
   window.addEventListener('orientationchange', queueResize);
   if (window.visualViewport) window.visualViewport.addEventListener('resize', queueResize);
-  window.addEventListener('blur', pause);
-  document.addEventListener('contextmenu', (e) => e.preventDefault());
-  // stop iOS double-tap / pinch zoom
-  document.addEventListener('gesturestart', (e) => e.preventDefault());
-  document.addEventListener('dblclick', (e) => e.preventDefault());
 
   // ---------- Loop ----------
+  // the home screen plays a silent demo in the jar behind the menu
+  function attract(dt) {
+    attractNext -= dt;
+    if (attractNext <= 0) {
+      attractNext = 650 + Math.random() * 500;
+      makeOrb(Math.floor(Math.random() * 4), 40 + Math.random() * (W - 80), -30);
+    }
+    if (orbs().some((b) => !b.merging && gameTime - b.born > 1500 && b.position.y - RADII[b.level] < H * 0.45)) {
+      for (const b of orbs()) { burst(b.position.x, b.position.y, theme.colors[b.level], 6, 0.6); Composite.remove(world, b); }
+    }
+  }
+
   let last = performance.now();
   let acc = 0;
   function frame(now) {
@@ -879,7 +1310,10 @@
     last = now;
     if (dt > 100) dt = 100;
 
-    if (state === 'playing' || state === 'dying') {
+    const blocked = !!panelOpen();
+    const running = (state === 'playing' && !blocked) || state === 'dying' || (state === 'home' && !blocked);
+    if (running) {
+      if (state === 'home') attract(dt);
       const kb = (keys.ArrowLeft || keys.a ? -1 : 0) + (keys.ArrowRight || keys.d ? 1 : 0);
       if (kb) aimX = clamp(aimX + kb * dt * 0.35, 0, W);
       acc += dt;
@@ -890,21 +1324,29 @@
         acc -= STEP;
       }
       if (state === 'playing') checkOver(dt);
+    } else {
+      acc = 0;
     }
-    if (state !== 'paused') updateFx(dt);
+    updateFx(dt);
     render();
     requestAnimationFrame(frame);
   }
 
   // ---------- Boot ----------
-  bestEl.textContent = best;
+  Sfx.configure(profile.settings);
+  SA.ensureMissions();
   current = randDroppable();
   nextLevel = randDroppable();
   resize();
   drawHero();
+  refreshHome();
+  syncPowerbar();
+  syncSettings();
   if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(() => { buildSprites(); drawNext(); drawEvo(); drawHero(); });
   }
+  // returning players get the daily reward popup
+  if (profile.tutorialDone && SA.dailyAvailable()) setTimeout(() => { if (state === 'home' && !panelOpen()) show('ov-daily'); }, 600);
   requestAnimationFrame(frame);
 
   // debug hook for automated tests
@@ -914,5 +1356,6 @@
     orbs: () => orbs().map((b) => ({ level: b.level, x: b.position.x, y: b.position.y })),
     drop: (x) => { aimX = x; drop(); },
     spawn: (level, x, y) => makeOrb(level, x, y),
+    profile,
   };
 })();

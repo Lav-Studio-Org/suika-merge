@@ -20,19 +20,61 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body class="at-home">
+  <!-- Icon set: 24px grid, 2px rounded strokes, one accent fill (--acc). -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-gift" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="10.5" width="17" height="10" rx="2" style="fill:var(--acc)"/><rect x="2.5" y="7" width="19" height="3.5" rx="1.5" style="fill:var(--acc)"/><path d="M12 7v13.5"/><path d="M12 7C10.6 3.4 6.5 3 6.5 5.2 6.5 6.8 9 7 12 7zM12 7c1.4-3.6 5.5-4 5.5-1.8C17.5 6.8 15 7 12 7z"/></g></symbol>
+      <symbol id="i-target" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9" style="fill:var(--acc)"/><circle cx="12" cy="12" r="5.2"/><circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/></g></symbol>
+      <symbol id="i-bag" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.8 8h14.4l-1.1 11.3a2 2 0 0 1-2 1.7H7.9a2 2 0 0 1-2-1.7z" style="fill:var(--acc)"/><path d="M9 11V7a3 3 0 0 1 6 0v4"/></g></symbol>
+      <symbol id="i-help" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9" style="fill:var(--acc)"/><path d="M9.4 9.3a2.7 2.7 0 1 1 3.8 2.5c-.8.4-1.2 1-1.2 1.8v.6"/><circle cx="12" cy="17.2" r="1.2" fill="currentColor" stroke="none"/></g></symbol>
+      <symbol id="i-gear" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M18.93 9.39 21.8 10v4l-2.87.62-.19.44 1.59 2.48-2.8 2.8-2.48-1.59-.44.19L14 21.8h-4l-.61-2.87-.44-.19-2.48 1.59-2.8-2.8 1.59-2.48-.19-.44L2.2 14v-4l2.87-.61.19-.44-1.59-2.48 2.8-2.8 2.48 1.59.44-.19L10 2.2h4l.61 2.87.44.19 2.48-1.59 2.8 2.8-1.59 2.48z" style="fill:var(--acc)"/><circle cx="12" cy="12" r="3"/></g></symbol>
+      <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="5" width="4.2" height="14" rx="1.6" fill="currentColor"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.6" fill="currentColor"/></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.6v12.8a1.2 1.2 0 0 0 1.8 1l10.3-6.4a1.2 1.2 0 0 0 0-2L9.8 4.6A1.2 1.2 0 0 0 8 5.6z" fill="currentColor"/></symbol>
+      <symbol id="i-close" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></symbol>
+      <symbol id="i-hammer" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M13.2 10.8 4.5 19.5" stroke-width="3.2"/><rect x="10.6" y="3.1" width="10" height="6.6" rx="1.6" transform="rotate(45 15.6 6.4)" stroke-width="2" style="fill:var(--acc)"/></g></symbol>
+      <symbol id="i-shake" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 7.5h9v10a3 3 0 0 1-3 3h-3a3 3 0 0 1-3-3z" style="fill:var(--acc)" transform="rotate(-8 12 14)"/><path d="M8.6 7.3 8.4 4.6h7.2l-.2 2.7" transform="rotate(-8 12 14)"/><path d="M3.6 9.5c-1.1 1.8-1.1 4.2 0 6M20.4 9.5c1.1 1.8 1.1 4.2 0 6"/><circle cx="11.6" cy="15" r="1.8" fill="currentColor" stroke="none"/></g></symbol>
+      <symbol id="i-swap" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5h14M14.5 5l3.5 3.5-3.5 3.5"/><path d="M20 15.5H6M9.5 12 6 15.5 9.5 19"/></g></symbol>
+      <symbol id="i-video" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="2.5" y="5.5" width="13.5" height="13" rx="3" style="fill:var(--acc)"/><path d="M16 10.4l5-3v9.2l-5-3z"/><path d="M7.6 9.4v5.2l4.2-2.6z" fill="currentColor" stroke="none"/></g></symbol>
+      <symbol id="i-sound" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" style="fill:var(--acc)"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6M18.2 6.4a8 8 0 0 1 0 11.2"/></g></symbol>
+      <symbol id="i-music" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17.5V6l10-2.5V15"/><circle cx="6.5" cy="17.5" r="2.6" style="fill:var(--acc)"/><circle cx="16.4" cy="15" r="2.6" style="fill:var(--acc)"/></g></symbol>
+      <symbol id="i-vibe" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3.5" width="8" height="17" rx="2.2" style="fill:var(--acc)"/><path d="M4.6 8.5v7M19.4 8.5v7M1.8 10.5v3M22.2 10.5v3"/></g></symbol>
+      <symbol id="i-home" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 11 12 4l8 7v8.5a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1z" style="fill:var(--acc)"/></g></symbol>
+      <symbol id="i-restart" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.6 12.5a7.5 7.5 0 1 0 2.4-6.1"/><path d="M4.5 3.8v4.4h4.4"/></g></symbol>
+      <symbol id="i-share" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8.3 10.8l7.4-4M8.3 13.2l7.4 4"/><circle cx="18" cy="5.5" r="2.6" style="fill:var(--acc)"/><circle cx="6" cy="12" r="2.6" style="fill:var(--acc)"/><circle cx="18" cy="18.5" r="2.6" style="fill:var(--acc)"/></g></symbol>
+      <symbol id="i-trophy" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3.8h10V9a5 5 0 0 1-10 0z" style="fill:var(--acc)"/><path d="M7 5.8H4.4A2.6 2.6 0 0 0 7.3 9.6M17 5.8h2.6a2.6 2.6 0 0 1-2.9 3.8M12 14v3.4M8.5 20.5h7M9.6 20.5l.6-3h3.6l.6 3"/></g></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.6l4.4 4.4L19 7.4" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-lock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5" y="10.5" width="14" height="10" rx="2.4" style="fill:var(--acc)"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></g></symbol>
+      <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.2l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.6l-5.2 2.8 1-5.9-4.3-4.1 5.9-.8z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></symbol>
+      <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 2.5c.8 4.8 2.7 6.7 7.5 7.5-4.8.8-6.7 2.7-7.5 7.5-.8-4.8-2.7-6.7-7.5-7.5 4.8-.8 6.7-2.7 7.5-7.5zM19 15.5c.4 2 1 2.7 3 3-2 .4-2.6 1-3 3-.4-2-1-2.6-3-3 2-.3 2.6-1 3-3z" fill="currentColor"/></symbol>
+      <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 21.5c-4 0-7-2.8-7-6.6 0-3.3 2.3-5.4 3.6-7.6.4 1.6 1.3 2.6 2.4 3C11 7 12.6 4.3 15 2.5c-.3 3.3 4 6.2 4 11.4 0 4.4-3 7.6-7 7.6z" fill="currentColor"/></symbol>
+      <symbol id="i-merge" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2"><circle cx="8.5" cy="12" r="5.5" style="fill:var(--acc)"/><circle cx="15.5" cy="12" r="5.5" style="fill:var(--acc)"/></g></symbol>
+      <symbol id="i-pad" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10a5 5 0 0 1 4.8 6.4l-1 3.4a2.4 2.4 0 0 1-4.1.9L15 16H9l-1.7 1.7a2.4 2.4 0 0 1-4.1-.9l-1-3.4A5 5 0 0 1 7 7z" style="fill:var(--acc)"/><path d="M8 10v3M6.5 11.5h3"/><circle cx="16" cy="11.5" r=".6" fill="currentColor"/></g></symbol>
+      <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13.5 2.5 4.5 13.5h6.5l-1 8 9-11h-6.5z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></symbol>
+      <symbol id="i-rotate" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2.4" style="fill:var(--acc)"/><path d="M10.5 18.5h3"/></g></symbol>
+      <symbol id="i-doc" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" style="fill:var(--acc)"/><path d="M8.5 11h7M8.5 14.5h7M8.5 18h4"/></g></symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5h16M9.5 6.5V4h5v2.5"/><path d="M6 6.5l1 13.2a1.5 1.5 0 0 0 1.5 1.3h7a1.5 1.5 0 0 0 1.5-1.3L18 6.5" style="fill:var(--acc)"/></g></symbol>
+      <symbol id="i-noads" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9" style="fill:var(--acc)"/><path d="M5.6 5.6l12.8 12.8"/></g></symbol>
+    </defs>
+  </svg>
+
   <div id="app">
     <header id="hud">
-      <div class="stat score">
+      <div class="stat score play-only">
         <span class="label">Skor</span>
         <span id="score" class="value">0</span>
       </div>
-      <div class="stat next">
+      <div class="stat best-stat home-only">
+        <span class="label">Terbaik</span>
+        <span class="value"><svg class="ic" aria-hidden="true"><use href="#i-trophy"/></svg><b id="home-best">0</b></span>
+      </div>
+      <div class="stat next play-only">
         <span class="label">Next</span>
         <canvas id="next" width="64" height="64"></canvas>
       </div>
       <div class="hud-right">
-        <div class="coin-chip"><span class="coin">●</span><span class="coins-val">0</span></div>
-        <button id="btn-pause" class="icon-btn" aria-label="Jeda">⏸</button>
+        <div class="coin-chip" aria-label="Koin"><span class="coin"></span><span class="coins-val">0</span></div>
+        <button id="btn-pause" class="icon-btn play-only" aria-label="Jeda"><svg class="ic" aria-hidden="true"><use href="#i-pause"/></svg></button>
+        <button class="icon-btn home-only" data-open="ov-settings" aria-label="Pengaturan"><svg class="ic" aria-hidden="true"><use href="#i-gear"/></svg></button>
       </div>
     </header>
 
@@ -41,54 +83,50 @@
 
       <!-- Home -->
       <section id="ov-home" class="overlay home show">
-        <div class="home-top">
-          <div class="coin-chip big"><span class="coin">●</span><span class="coins-val">0</span></div>
-          <button class="icon-btn" data-open="ov-settings" aria-label="Pengaturan">⚙</button>
-        </div>
         <div class="home-center">
           <h1 class="title"><span>Suika</span><span>Angka</span></h1>
-          <canvas id="hero" width="300" height="90"></canvas>
-          <p class="home-best">Skor terbaik: <b id="home-best">0</b></p>
-          <button id="btn-play" class="big-btn pulse">Main</button>
+          <canvas id="hero" width="300" height="90" role="img" aria-label="1 tambah 1 sama dengan 2"></canvas>
+          <button id="btn-play" class="big-btn pulse"><svg class="ic" aria-hidden="true"><use href="#i-play"/></svg>Main</button>
         </div>
         <nav class="home-nav">
-          <button class="nav-btn" data-open="ov-daily"><span class="ni">🎁</span>Hadiah<i class="badge" id="badge-daily"></i></button>
-          <button class="nav-btn" data-open="ov-missions"><span class="ni">🎯</span>Misi<i class="badge" id="badge-missions"></i></button>
-          <button class="nav-btn" data-open="ov-shop"><span class="ni">🎨</span>Toko</button>
-          <button class="nav-btn" data-open="ov-howto"><span class="ni">❓</span>Cara main</button>
+          <button class="nav-btn t-pink" data-open="ov-daily"><span class="ni"><svg class="ic" aria-hidden="true"><use href="#i-gift"/></svg></span>Hadiah<i class="badge" id="badge-daily"></i></button>
+          <button class="nav-btn t-orange" data-open="ov-missions"><span class="ni"><svg class="ic" aria-hidden="true"><use href="#i-target"/></svg></span>Misi<i class="badge" id="badge-missions"></i></button>
+          <button class="nav-btn t-blue" data-open="ov-shop"><span class="ni"><svg class="ic" aria-hidden="true"><use href="#i-bag"/></svg></span>Toko</button>
+          <button class="nav-btn t-purple" data-open="ov-howto"><span class="ni"><svg class="ic" aria-hidden="true"><use href="#i-help"/></svg></span>Cara main</button>
         </nav>
       </section>
 
       <!-- Pause -->
-      <section id="ov-pause" class="overlay">
+      <section id="ov-pause" class="overlay" role="dialog" aria-label="Jeda">
         <div class="card">
           <h2>Jeda</h2>
           <div class="toggles small">
-            <label><span>Suara</span><input type="checkbox" data-setting="sound"><i></i></label>
-            <label><span>Musik</span><input type="checkbox" data-setting="music"><i></i></label>
-            <label><span>Getar</span><input type="checkbox" data-setting="vibe"><i></i></label>
+            <label><svg class="ic" aria-hidden="true"><use href="#i-sound"/></svg><span>Suara</span><input type="checkbox" data-setting="sound"><i></i></label>
+            <label><svg class="ic" aria-hidden="true"><use href="#i-music"/></svg><span>Musik</span><input type="checkbox" data-setting="music"><i></i></label>
+            <label><svg class="ic" aria-hidden="true"><use href="#i-vibe"/></svg><span>Getar</span><input type="checkbox" data-setting="vibe"><i></i></label>
           </div>
-          <button id="btn-resume" class="big-btn">Lanjut</button>
+          <button id="btn-resume" class="big-btn"><svg class="ic" aria-hidden="true"><use href="#i-play"/></svg>Lanjut</button>
           <div class="row2">
-            <button id="btn-restart" class="ghost-btn">Ulangi</button>
-            <button id="btn-quit" class="ghost-btn">Menu</button>
+            <button id="btn-restart" class="ghost-btn"><svg class="ic" aria-hidden="true"><use href="#i-restart"/></svg>Ulangi</button>
+            <button id="btn-quit" class="ghost-btn"><svg class="ic" aria-hidden="true"><use href="#i-home"/></svg>Menu</button>
           </div>
         </div>
       </section>
 
       <!-- Revive -->
-      <section id="ov-revive" class="overlay">
+      <section id="ov-revive" class="overlay" role="dialog" aria-label="Lanjutkan permainan">
         <div class="card">
+          <div class="medal t-pink"><svg class="ic" aria-hidden="true"><use href="#i-sparkle"/></svg></div>
           <h2>Hampir!</h2>
-          <p class="lead">Lanjutkan permainan? Bola teratas akan dibersihkan.</p>
+          <p class="lead">Tonton iklan singkat untuk lanjut. Bola paling atas akan dibersihkan.</p>
           <div class="timer-bar"><i id="revive-bar"></i></div>
-          <button id="btn-revive" class="big-btn ad">▶ Lanjutkan</button>
+          <button id="btn-revive" class="big-btn ad"><svg class="ic" aria-hidden="true"><use href="#i-video"/></svg>Lanjutkan</button>
           <button id="btn-revive-skip" class="link-btn">Tidak, terima kasih</button>
         </div>
       </section>
 
       <!-- Game over -->
-      <section id="ov-over" class="overlay">
+      <section id="ov-over" class="overlay" role="dialog" aria-label="Game over">
         <div class="card">
           <h2>Game Over</h2>
           <div class="final">
@@ -97,118 +135,120 @@
           </div>
           <p id="final-best" class="best-line"></p>
           <p id="final-max" class="best-line"></p>
-          <div class="earned">
-            <span class="coin">●</span> <b id="earned">+0</b> koin
+          <div class="reward-box">
+            <div class="earned"><span class="coin"></span><b id="earned">+0</b></div>
+            <button id="btn-double" class="chip-btn ad"><svg class="ic" aria-hidden="true"><use href="#i-video"/></svg><span>Gandakan</span></button>
           </div>
-          <button id="btn-double" class="big-btn ad gold">▶ Ambil 2x koin</button>
+          <button id="btn-again" class="big-btn"><svg class="ic" aria-hidden="true"><use href="#i-restart"/></svg>Main lagi</button>
           <div class="row2">
-            <button id="btn-again" class="ghost-btn strong">Main lagi</button>
-            <button id="btn-menu" class="ghost-btn">Menu</button>
+            <button id="btn-menu" class="ghost-btn"><svg class="ic" aria-hidden="true"><use href="#i-home"/></svg>Menu</button>
+            <button id="btn-share" class="ghost-btn"><svg class="ic" aria-hidden="true"><use href="#i-share"/></svg>Bagikan</button>
           </div>
-          <button id="btn-share" class="link-btn">Bagikan skor</button>
         </div>
       </section>
 
       <!-- Daily reward -->
-      <section id="ov-daily" class="overlay">
+      <section id="ov-daily" class="overlay" role="dialog" aria-label="Hadiah harian">
         <div class="card">
-          <button class="x-btn" data-close aria-label="Tutup">✕</button>
+          <button class="x-btn" data-close aria-label="Tutup"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button>
           <h2>Hadiah Harian</h2>
+          <p class="sub">Masuk setiap hari, hadiahnya makin besar.</p>
           <div id="daily-grid" class="daily-grid"></div>
           <div id="daily-actions">
-            <button id="btn-daily-2x" class="big-btn ad gold">▶ Ambil 2x</button>
-            <button id="btn-daily" class="ghost-btn">Ambil</button>
+            <button id="btn-daily-2x" class="big-btn ad"><svg class="ic" aria-hidden="true"><use href="#i-video"/></svg>Ambil 2x</button>
+            <button id="btn-daily" class="ghost-btn">Ambil saja</button>
           </div>
           <p id="daily-done" class="lead">Sudah diambil hari ini. Datang lagi besok!</p>
         </div>
       </section>
 
       <!-- Missions -->
-      <section id="ov-missions" class="overlay">
+      <section id="ov-missions" class="overlay" role="dialog" aria-label="Misi harian">
         <div class="card">
-          <button class="x-btn" data-close aria-label="Tutup">✕</button>
+          <button class="x-btn" data-close aria-label="Tutup"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button>
           <h2>Misi Hari Ini</h2>
+          <p class="sub">Misi baru setiap hari.</p>
           <ul id="mission-list" class="mission-list"></ul>
-          <p class="hint">Misi baru setiap hari.</p>
         </div>
       </section>
 
       <!-- Shop -->
-      <section id="ov-shop" class="overlay">
+      <section id="ov-shop" class="overlay" role="dialog" aria-label="Toko">
         <div class="card wide">
-          <button class="x-btn" data-close aria-label="Tutup">✕</button>
+          <button class="x-btn" data-close aria-label="Tutup"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button>
           <h2>Toko</h2>
+          <div class="shop-coins"><span class="coin"></span><span class="coins-val">0</span></div>
           <button id="btn-free-coins" class="free-coins">
-            <span class="fc-left"><span class="coin">●</span> +50 koin gratis</span>
-            <span class="fc-right">▶ <small id="free-left">5/5</small></span>
+            <span class="fc-left"><svg class="ic" aria-hidden="true"><use href="#i-video"/></svg>+50 koin gratis</span>
+            <span class="fc-right" id="free-left">5/5</span>
           </button>
           <h3>Tema</h3>
           <div id="theme-list" class="theme-list"></div>
           <h3>Power-up</h3>
           <div id="power-shop" class="power-shop"></div>
-          <button class="noads" disabled>🚫 Hapus iklan <small>segera hadir</small></button>
+          <button class="noads" disabled><svg class="ic" aria-hidden="true"><use href="#i-noads"/></svg><span>Hapus iklan<small>Segera hadir</small></span></button>
         </div>
       </section>
 
       <!-- Settings -->
-      <section id="ov-settings" class="overlay">
+      <section id="ov-settings" class="overlay" role="dialog" aria-label="Pengaturan">
         <div class="card">
-          <button class="x-btn" data-close aria-label="Tutup">✕</button>
+          <button class="x-btn" data-close aria-label="Tutup"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button>
           <h2>Pengaturan</h2>
           <div class="toggles">
-            <label><span>Suara</span><input type="checkbox" data-setting="sound"><i></i></label>
-            <label><span>Musik</span><input type="checkbox" data-setting="music"><i></i></label>
-            <label><span>Getar</span><input type="checkbox" data-setting="vibe"><i></i></label>
+            <label><svg class="ic" aria-hidden="true"><use href="#i-sound"/></svg><span>Suara</span><input type="checkbox" data-setting="sound"><i></i></label>
+            <label><svg class="ic" aria-hidden="true"><use href="#i-music"/></svg><span>Musik</span><input type="checkbox" data-setting="music"><i></i></label>
+            <label><svg class="ic" aria-hidden="true"><use href="#i-vibe"/></svg><span>Getar</span><input type="checkbox" data-setting="vibe"><i></i></label>
           </div>
-          <a class="ghost-btn as-link" href="privacy.html" target="_blank" rel="noopener">Kebijakan privasi</a>
-          <button id="btn-reset" class="link-btn danger">Hapus semua data</button>
-          <p class="hint">Suika Angka v1.0</p>
+          <a class="ghost-btn as-link" href="privacy.html" target="_blank" rel="noopener"><svg class="ic" aria-hidden="true"><use href="#i-doc"/></svg>Kebijakan privasi</a>
+          <button id="btn-reset" class="link-btn danger"><svg class="ic" aria-hidden="true"><use href="#i-trash"/></svg>Hapus semua data</button>
+          <p class="hint">Suika Angka v1.1</p>
         </div>
       </section>
 
       <!-- How to play -->
-      <section id="ov-howto" class="overlay">
+      <section id="ov-howto" class="overlay" role="dialog" aria-label="Cara main">
         <div class="card">
-          <button class="x-btn" data-close aria-label="Tutup">✕</button>
+          <button class="x-btn" data-close aria-label="Tutup"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button>
           <h2>Cara Main</h2>
           <ol class="howto">
-            <li><b>Geser</b> untuk membidik, <b>lepas</b> untuk menjatuhkan bola.</li>
-            <li>Dua angka <b>sama</b> yang bersentuhan bergabung: 1+1 jadi 2, 2+2 jadi 3, dan seterusnya.</li>
-            <li>Merge beruntun cepat memberi <b>combo</b> dan skor berlipat.</li>
-            <li>Jangan biarkan tumpukan bertahan di atas <b>garis merah</b>.</li>
-            <li>Pakai <b>power-up</b> di bawah layar saat terdesak.</li>
-            <li>Dua angka <b>11</b> lenyap dengan bonus besar!</li>
+            <li><span class="hn">1</span><span><b>Geser</b> untuk membidik, <b>lepas</b> untuk menjatuhkan bola.</span></li>
+            <li><span class="hn">2</span><span>Dua angka <b>sama</b> yang bersentuhan bergabung: 1+1 jadi 2, 2+2 jadi 3.</span></li>
+            <li><span class="hn">3</span><span>Merge beruntun cepat memberi <b>combo</b> dan skor berlipat.</span></li>
+            <li><span class="hn">4</span><span>Jangan biarkan tumpukan bertahan di atas <b>garis merah</b>.</span></li>
+            <li><span class="hn">5</span><span>Terdesak? Pakai <b>power-up</b> di bawah layar.</span></li>
+            <li><span class="hn">6</span><span>Dua angka <b>11</b> lenyap dengan bonus besar!</span></li>
           </ol>
           <button class="big-btn" data-close>Mengerti</button>
         </div>
       </section>
 
-      <!-- Generic offer (rewarded ad for a power-up) -->
-      <section id="ov-offer" class="overlay">
+      <!-- Offer (rewarded ad for a power-up) -->
+      <section id="ov-offer" class="overlay" role="dialog" aria-label="Power-up habis">
         <div class="card">
-          <div id="offer-icon" class="offer-icon"></div>
+          <div id="offer-icon" class="medal t-blue"></div>
           <h2 id="offer-title"></h2>
           <p id="offer-text" class="lead"></p>
-          <button id="offer-ad" class="big-btn ad">▶ Gratis</button>
+          <button id="offer-ad" class="big-btn ad"><svg class="ic" aria-hidden="true"><use href="#i-video"/></svg>Dapatkan 1 gratis</button>
           <button id="offer-buy" class="ghost-btn"></button>
           <button class="link-btn" data-close>Nanti saja</button>
         </div>
       </section>
 
-      <div id="tool-hint">Ketuk bola yang ingin dipecah <button id="tool-cancel">Batal</button></div>
-      <div id="toast"></div>
+      <div id="tool-hint"><svg class="ic" aria-hidden="true"><use href="#i-hammer"/></svg>Ketuk bola yang ingin dipecah <button id="tool-cancel">Batal</button></div>
+      <div id="toast" role="status" aria-live="polite"></div>
     </main>
 
     <footer id="dock">
       <div id="powerbar">
-        <button class="pw" data-power="hammer"><span class="pi">🔨</span><span class="pn">Palu</span><i class="pc"></i></button>
-        <button class="pw" data-power="shake"><span class="pi">💥</span><span class="pn">Guncang</span><i class="pc"></i></button>
-        <button class="pw" data-power="swap"><span class="pi">🔄</span><span class="pn">Tukar</span><i class="pc"></i></button>
+        <button class="pw" data-power="hammer" aria-label="Palu"><svg class="ic" aria-hidden="true"><use href="#i-hammer"/></svg><span class="pn">Palu</span><i class="pc"></i></button>
+        <button class="pw" data-power="shake" aria-label="Guncang"><svg class="ic" aria-hidden="true"><use href="#i-shake"/></svg><span class="pn">Guncang</span><i class="pc"></i></button>
+        <button class="pw" data-power="swap" aria-label="Tukar"><svg class="ic" aria-hidden="true"><use href="#i-swap"/></svg><span class="pn">Tukar</span><i class="pc"></i></button>
       </div>
-      <canvas id="evo"></canvas>
+      <canvas id="evo" role="img" aria-label="Koleksi angka"></canvas>
     </footer>
   </div>
-  <div id="rotate"><div>📱↻</div><p>Putar HP ke posisi tegak untuk main</p></div>
+  <div id="rotate"><svg class="ic" aria-hidden="true"><use href="#i-rotate"/></svg><p>Putar HP ke posisi tegak untuk main</p></div>
 
   <script src="vendor/matter.min.js"></script>
   <script src="js/meta.js"></script>

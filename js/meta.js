@@ -35,9 +35,9 @@
 
   // ---------- Power-ups ----------
   SA.POWERS = {
-    hammer: { name: 'Palu', icon: '🔨', price: 60, desc: 'Pecahkan satu bola mana pun.' },
-    shake: { name: 'Guncang', icon: '💥', price: 40, desc: 'Guncang toples supaya tumpukan teracak.' },
-    swap: { name: 'Tukar', icon: '🔄', price: 25, desc: 'Tukar bola sekarang dengan bola berikutnya.' },
+    hammer: { name: 'Palu', icon: 'hammer', price: 60, desc: 'Pecahkan satu bola mana pun.' },
+    shake: { name: 'Guncang', icon: 'shake', price: 40, desc: 'Guncang toples supaya tumpukan teracak.' },
+    swap: { name: 'Tukar', icon: 'swap', price: 25, desc: 'Tukar bola sekarang dengan bola berikutnya.' },
   };
 
   // ---------- Dates ----------

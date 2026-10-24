@@ -57,7 +57,9 @@
     if (!profile.settings.vibe) return;
     try { navigator.vibrate && navigator.vibrate(ms); } catch { /* ignore */ }
   }
-  const coinHTML = '<span class="coin">●</span>';
+  const coinHTML = '<span class="coin"></span>';
+  const ic = (id) => `<svg class="ic" aria-hidden="true"><use href="#i-${id}"/></svg>`;
+  const MISSION_ICON = { reach: ['star', 't-orange'], score: ['trophy', 't-pink'], combo: ['flame', 't-pink'], merges: ['merge', 't-blue'], games: ['pad', 't-purple'], power: ['bolt', 't-green'] };
 
   // ---------- Orb drawing ----------
   function drawOrb(c, level, r, blink, x = 0, y = 0, colors = theme.colors) {
@@ -286,7 +288,7 @@
         burst(x, y, '#ffffff', 40, 1.2);
         rings.push({ x, y, r: RADII[level], life: 0, max: 700, color: '#fff' });
         floatText(x, y, `+${gained}`, '#fff', 34);
-        toast('Sempurna! 11 + 11 lenyap ✨');
+        toast('Sempurna! 11 + 11 lenyap', 'sparkle');
         shake = 18; flash = 0.6;
         Sfx.merge(level, combo);
         Sfx.record();
@@ -310,8 +312,8 @@
             profile.bestLevel = nl;
             SA.save();
             drawEvo();
-            if (nl >= 4) toast(`Angka baru ditemukan: ${nl + 1}! 🎉`);
-          } else if (nl >= 6) toast(`Angka ${nl + 1}! 🔥`);
+            if (nl >= 4) toast(`Angka baru ditemukan: ${nl + 1}!`, 'star');
+          } else if (nl >= 6) toast(`Angka ${nl + 1}!`, 'flame');
         }
       }
       if (tutorial === 1) endTutorial();
@@ -356,8 +358,11 @@
     texts.push({ x, y, str, color, size, life: 0, max: 900 });
   }
   let toastTimer = 0;
-  function toast(msg, ms = 1700) {
-    toastEl.textContent = msg;
+  function toast(msg, icon = null, ms = 1700) {
+    if (typeof icon === 'number') { ms = icon; icon = null; }
+    toastEl.innerHTML = (icon ? ic(icon) : '') + '<span></span>';
+    toastEl.lastChild.textContent = msg;
+    toastEl.classList.toggle('plain', !icon);
     toastEl.classList.add('show');
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => toastEl.classList.remove('show'), ms);
@@ -464,7 +469,7 @@
     tutorial = -1;
     profile.tutorialDone = true;
     SA.save();
-    toast('Mantap! Terus gabungkan 👍');
+    toast('Mantap! Terus gabungkan', 'check');
   }
 
   function checkOver(dt) {
@@ -529,7 +534,7 @@
       state = 'playing';
       overTimer = 0;
       Sfx.revive();
-      toast('Lanjut! 💪');
+      toast('Lanjut!', 'bolt');
     }, list.length * 70 + 200);
   }
 
@@ -568,14 +573,14 @@
 
     $('final-score').textContent = score;
     $('final-best').innerHTML = isRecord && score > 0
-      ? '<span class="new">Rekor baru! 🏆</span>'
+      ? `${ic('trophy')}<span class="new">Rekor baru!</span>`
       : `Terbaik: <b>${Math.max(prevBest, score)}</b>`;
     $('final-max').innerHTML = `Angka tertinggi: <b>${gameMaxLevel + 1}</b>`;
     $('earned').textContent = `+${earned}`;
     const dbl = $('btn-double');
     dbl.disabled = earned <= 0;
     dbl.style.display = earned > 0 ? '' : 'none';
-    dbl.textContent = '▶ Ambil 2x koin';
+    dbl.innerHTML = `${ic('video')}<span>Gandakan</span>`;
     if (isRecord && score > 0) Sfx.record();
     show('ov-over');
   }
@@ -588,7 +593,7 @@
       const pc = btn.querySelector('.pc');
       pc.className = 'pc';
       if (n > 0) pc.textContent = n;
-      else { pc.textContent = '▶'; pc.classList.add('ad'); }
+      else { pc.innerHTML = ic('video'); pc.classList.add('ad'); }
       btn.classList.toggle('active', tool === id);
     });
   }
@@ -661,10 +666,9 @@
   function openPowerOffer(id) {
     offerId = id;
     const p = SA.POWERS[id];
-    $('offer-icon').textContent = p.icon;
+    $('offer-icon').innerHTML = ic(p.icon);
     $('offer-title').textContent = `${p.name} habis`;
     $('offer-text').textContent = p.desc;
-    $('offer-ad').textContent = '▶ Dapatkan 1 gratis';
     const buy = $('offer-buy');
     buy.innerHTML = `Beli dengan ${coinHTML} ${p.price}`;
     buy.disabled = profile.coins < p.price;
@@ -850,8 +854,14 @@
     c.fillText(msg, W / 2, y + 1);
     if (tutorial === 0) {
       const hx = W / 2 + Math.sin(now / 500) * 110;
-      c.font = '40px system-ui, sans-serif';
-      c.fillText('👆', hx, y + 60);
+      // touch indicator: a fingertip dot with an expanding ripple
+      const t = (now % 1000) / 1000;
+      c.strokeStyle = `rgba(42,24,64,${0.5 * (1 - t)})`;
+      c.lineWidth = 3;
+      c.beginPath(); c.arc(hx, y + 62, 14 + t * 18, 0, Math.PI * 2); c.stroke();
+      c.fillStyle = 'rgba(255,255,255,.95)';
+      c.strokeStyle = 'rgba(42,24,64,.85)';
+      c.beginPath(); c.arc(hx, y + 62, 14, 0, Math.PI * 2); c.fill(); c.stroke();
       if (canDrop && !pointerDown) aimX = hx;
     }
   }
@@ -915,14 +925,11 @@
     hc.scale(2, 2);
     hc.font = '700 28px Fredoka, ui-rounded, system-ui, sans-serif';
     hc.textAlign = 'center'; hc.textBaseline = 'middle';
-    hc.fillStyle = '#fff';
-    hc.strokeStyle = 'rgba(42,24,64,.6)';
-    hc.lineWidth = 5;
-    hc.lineJoin = 'round';
+    hc.fillStyle = '#2a1840';
     drawOrb(hc, 0, 24, false, 40, 50);
-    hc.strokeText('+', 88, 50); hc.fillText('+', 88, 50);
+    hc.fillText('+', 88, 50);
     drawOrb(hc, 0, 24, false, 136, 50);
-    hc.strokeText('=', 186, 50); hc.fillText('=', 186, 50);
+    hc.fillText('=', 186, 50);
     drawOrb(hc, 1, 34, false, 246, 48);
   }
 
@@ -936,7 +943,7 @@
   }
   SA.on('coins', setCoins);
   SA.on('ad-unavailable', () => toast('Iklan belum tersedia, coba lagi sebentar'));
-  SA.on('mission-done', (m) => { if (state === 'playing') toast(`Misi selesai: ${m.text} 🎯`, 2200); refreshBadges(); });
+  SA.on('mission-done', (m) => { if (state === 'playing') toast(`Misi selesai: ${m.text}`, 'target', 2200); refreshBadges(); });
 
   function refreshBadges() {
     const d = $('badge-daily');
@@ -972,7 +979,8 @@
       if (day < today || (!available && day === today)) cls.push('got');
       if (available && day === today) cls.push('today');
       if (day === 7) cls.push('big');
-      return `<div class="${cls.join(' ')}">Hari ${day}${coinHTML}<b>${amt}</b></div>`;
+      const tick = cls.includes('got') ? `<span class="tick">${ic('check')}</span>` : '';
+      return `<div class="${cls.join(' ')}">${tick}Hari ${day}${coinHTML}<b>${amt}</b></div>`;
     }).join('');
     $('ov-daily').classList.toggle('daily-claimed', !available);
   }
@@ -982,7 +990,7 @@
     if (withAd && !(await Ads.rewarded('daily_double'))) return;
     const amt = SA.claimDaily(withAd ? 2 : 1);
     Sfx.coin();
-    toast(`+${amt} koin!`);
+    toast(`+${amt} koin!`, 'sparkle');
     renderDaily();
     refreshBadges();
   }
@@ -994,10 +1002,12 @@
       const pct = Math.round((m.progress / m.target) * 100);
       let acts = '';
       if (done && !m.claimed) {
-        acts = `<div class="acts"><button class="claim" data-claim="${i}">Ambil</button><button class="claim2" data-claim2="${i}">▶ Ambil 2x</button></div>`;
+        acts = `<div class="acts"><button class="claim" data-claim="${i}">Ambil</button><button class="claim2" data-claim2="${i}">${ic('video')}Ambil 2x</button></div>`;
       }
+      const [mic, mcol] = MISSION_ICON[m.type] || ['target', 't-orange'];
       return `<li class="mission${m.claimed ? ' claimed' : ''}">
-        <div class="mt"><span>${m.claimed ? '✅ ' : ''}${m.text}</span><span class="mr">${coinHTML}${m.reward}</span></div>
+        <span class="mi ${mcol}">${ic(mic)}</span>
+        <div class="mt"><span>${m.text}</span>${m.claimed ? ic('check') : ''}<span class="mr">${coinHTML}${m.reward}</span></div>
         <div class="bar"><i style="width:${pct}%"></i></div>
         <div class="mp">${m.claimed ? 'Sudah diambil' : `${m.progress} / ${m.target}`}</div>
         ${acts}
@@ -1012,7 +1022,7 @@
     const i = withAd ? b.dataset.claim2 : b.dataset.claim;
     if (withAd && !(await Ads.rewarded('mission_double'))) return;
     const amt = SA.claimMission(+i, withAd ? 2 : 1);
-    if (amt) { Sfx.coin(); toast(`+${amt} koin!`); }
+    if (amt) { Sfx.coin(); toast(`+${amt} koin!`, 'sparkle'); }
     renderMissions();
     refreshBadges();
   });
@@ -1077,7 +1087,7 @@
 
     $('power-shop').innerHTML = Object.entries(SA.POWERS).map(([id, p]) => `
       <div class="pshop">
-        <span class="pi">${p.icon}</span>
+        <span class="pi">${ic(p.icon)}</span>
         <span class="pd"><b>${p.name} <small>(punya ${profile.power[id] || 0})</small></b>${p.desc}</span>
         <button data-buy="${id}" ${profile.coins < p.price ? 'disabled' : ''}>${coinHTML}${p.price}</button>
       </div>`).join('');
@@ -1093,7 +1103,7 @@
     profile.power[id] = (profile.power[id] || 0) + 1;
     SA.save();
     Sfx.coin();
-    toast(`+1 ${p.name}`);
+    toast(`+1 ${p.name}`, p.icon);
     renderShop();
     syncPowerbar();
   });
@@ -1103,7 +1113,7 @@
     if (!(await Ads.rewarded('free_coins'))) return;
     SA.takeFreeCoins();
     Sfx.coin();
-    toast(`+${SA.FREE_COINS} koin!`);
+    toast(`+${SA.FREE_COINS} koin!`, 'sparkle');
     renderShop();
   });
 
@@ -1163,7 +1173,7 @@
     $('earned').textContent = `+${earned * 2}`;
     const b = $('btn-double');
     b.disabled = true;
-    b.textContent = '✓ Koin dilipatgandakan';
+    b.innerHTML = `${ic('check')}<span>Digandakan</span>`;
     Sfx.coin();
   });
   $('btn-again').addEventListener('click', async () => { await Ads.maybeInterstitial('game_over'); startGame(); });
@@ -1177,7 +1187,7 @@
     SA.save();
     hide('ov-offer');
     syncPowerbar();
-    toast(`+1 ${SA.POWERS[id].name}!`);
+    toast(`+1 ${SA.POWERS[id].name}!`, SA.POWERS[id].icon);
   });
   $('offer-buy').addEventListener('click', () => {
     const id = offerId, p = SA.POWERS[id];

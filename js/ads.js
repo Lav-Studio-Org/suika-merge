@@ -55,8 +55,9 @@
     });
   }
 
-  const provider = {
-    // return Promise<boolean>: true when the ad was shown (and for rewarded: fully watched)
+  // Promise<boolean>: true when the ad was shown (and for rewarded: fully watched).
+  // In the Android app js/native.js provides the real AdMob implementation.
+  const provider = SA.nativeAdProvider || {
     showRewarded: (placement) => mockAd({ kind: 'rewarded', placement }),
     showInterstitial: (placement) => mockAd({ kind: 'interstitial', placement }),
   };
@@ -71,6 +72,7 @@
     SA.Sfx && SA.Sfx.duck(false);
     state.lastAdAt = Date.now();
     SA.track(ok ? 'ad_complete' : 'ad_failed', { kind, placement });
+    if (!ok && kind === 'rewarded') SA.emit && SA.emit('ad-unavailable', placement);
     return ok;
   }
 

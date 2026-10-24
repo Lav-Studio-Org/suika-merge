@@ -1,0 +1,8 @@
+{
+  "appId": "com.lavaruz.suikaangka",
+  "appName": "Suika Angka",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#2b1d4e"
+  }
+}

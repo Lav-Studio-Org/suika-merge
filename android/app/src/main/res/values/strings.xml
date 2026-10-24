@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Suika Angka</string>
+    <string name="title_activity_main">Suika Angka</string>
+    <string name="package_name">com.lavaruz.suikaangka</string>
+    <string name="custom_url_scheme">com.lavaruz.suikaangka</string>
+    <!-- Google's TEST AdMob app id. Replace with your own from apps.admob.com before publishing. -->
+    <string name="admob_app_id">ca-app-pub-3940256099942544~3347511713</string>
+</resources>

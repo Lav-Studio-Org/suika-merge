@@ -1,3 +1,12 @@
+/* Fredoka (SIL Open Font License), self-hosted so the app works offline */
+@font-face {
+  font-family: 'Fredoka';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url(fonts/fredoka-latin.woff2) format('woff2');
+}
+
 :root {
   --bg1: #2b1d4e;
   --bg2: #4a2c6e;

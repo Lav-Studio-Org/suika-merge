@@ -935,6 +935,7 @@
     });
   }
   SA.on('coins', setCoins);
+  SA.on('ad-unavailable', () => toast('Iklan belum tersedia, coba lagi sebentar'));
   SA.on('mission-done', (m) => { if (state === 'playing') toast(`Misi selesai: ${m.text} 🎯`, 2200); refreshBadges(); });
 
   function refreshBadges() {
@@ -1348,6 +1349,8 @@
   // returning players get the daily reward popup
   if (profile.tutorialDone && SA.dailyAvailable()) setTimeout(() => { if (state === 'home' && !panelOpen()) show('ov-daily'); }, 600);
   requestAnimationFrame(frame);
+
+  SA.drawOrb = drawOrb; // used by scripts that render store art
 
   // debug hook for automated tests
   window.__suika = {

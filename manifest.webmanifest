@@ -1,0 +1,10 @@
+{
+  "name": "Suika Angka",
+  "short_name": "Suika Angka",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#2b1d4e",
+  "theme_color": "#2b1d4e",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

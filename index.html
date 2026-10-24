@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Suika Angka</title>
+  <meta name="description" content="Game merge ala Suika: jatuhkan angka, gabungkan yang sama, raih angka 11!">
+  <meta name="theme-color" content="#2b1d4e">
+  <meta property="og:title" content="Suika Angka">
+  <meta property="og:description" content="Jatuhkan angka, gabungkan yang sama. 1+1 jadi 2, 2+2 jadi 3... bisa sampai 11?">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <header id="hud">
+      <div class="stat score">
+        <span class="label">Skor</span>
+        <span id="score" class="value">0</span>
+      </div>
+      <div class="stat next">
+        <span class="label">Next</span>
+        <canvas id="next" width="64" height="64"></canvas>
+      </div>
+      <div class="stat best">
+        <span class="label">Terbaik</span>
+        <span id="best" class="value">0</span>
+      </div>
+      <div class="buttons">
+        <button id="btn-sound" class="icon-btn" aria-label="Suara">🔊</button>
+        <button id="btn-pause" class="icon-btn" aria-label="Jeda">⏸</button>
+      </div>
+    </header>
+
+    <main id="stage">
+      <canvas id="game"></canvas>
+
+      <div id="overlay-start" class="overlay show">
+        <div class="card">
+          <h1 class="title"><span>Suika</span> <span>Angka</span></h1>
+          <p class="tag">Gabungkan angka yang sama.<br><b>1 + 1 = 2</b>, <b>2 + 2 = 3</b> ... sampai <b>11</b>!</p>
+          <canvas id="hero" width="300" height="90"></canvas>
+          <button id="btn-start" class="big-btn">Main</button>
+          <p class="hint">Geser untuk membidik, lepas untuk menjatuhkan.<br>Jangan sampai tumpukan melewati garis merah!</p>
+        </div>
+      </div>
+
+      <div id="overlay-pause" class="overlay">
+        <div class="card">
+          <h2>Jeda</h2>
+          <button id="btn-resume" class="big-btn">Lanjut</button>
+          <button id="btn-restart" class="ghost-btn">Ulangi dari awal</button>
+        </div>
+      </div>
+
+      <div id="overlay-over" class="overlay">
+        <div class="card">
+          <h2>Game Over</h2>
+          <div class="final">
+            <span class="label">Skor</span>
+            <span id="final-score" class="value">0</span>
+          </div>
+          <p id="final-best" class="best-line"></p>
+          <p id="final-max" class="best-line"></p>
+          <button id="btn-again" class="big-btn">Main lagi</button>
+          <button id="btn-share" class="ghost-btn">Bagikan skor</button>
+        </div>
+      </div>
+
+      <div id="toast"></div>
+    </main>
+
+    <footer id="chain">
+      <canvas id="evo"></canvas>
+    </footer>
+  </div>
+
+  <script src="vendor/matter.min.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>

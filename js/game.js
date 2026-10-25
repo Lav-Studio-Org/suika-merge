@@ -1416,7 +1416,7 @@
   $('tool-cancel').addEventListener('pointerdown', (e) => e.stopPropagation());
   $('btn-share').addEventListener('click', async () => {
     const text = `Aku dapat skor ${score} di Suika Angka mode ${mode.name} (angka tertinggi ${gameMaxLevel + 1})! Coba kalahkan:`;
-    const url = 'https://lavaruz.github.io/suika-merge/';
+    const url = 'https://lav-studio-org.github.io/suika-merge/';
     try {
       if (navigator.share) { await navigator.share({ title: 'Suika Angka', text, url }); return; }
       await navigator.clipboard.writeText(`${text} ${url}`);

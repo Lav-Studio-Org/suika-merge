@@ -6,11 +6,11 @@ Dokumen ini menjelaskan cara Suika Angka jadi aplikasi Android, bagaimana iklann
 
 | Bagian | Isi |
 |---|---|
-| Game | HTML/JS biasa (folder root repo). Website: https://lavaruz.github.io/suika-merge/ |
+| Game | HTML/JS biasa (folder root repo). Website: https://lav-studio-org.github.io/suika-merge/ |
 | Aplikasi Android | [Capacitor](https://capacitorjs.com) membungkus game ke folder `android/` |
 | Iklan | [AdMob](https://admob.google.com) lewat `@capacitor-community/admob`, kodenya di `js/native.js` |
 | Build | GitHub Actions (`.github/workflows/android.yml`) di setiap push ke `main` |
-| APK untuk dicoba | https://github.com/Lavaruz/suika-merge/releases/tag/android-latest |
+| APK untuk dicoba | https://github.com/Lav-Studio-Org/suika-merge/releases/tag/android-latest |
 | AAB untuk Play Store | Artifact di halaman run Actions, muncul setelah secret keystore dipasang |
 
 Di website, iklan diganti "iklan contoh" supaya alurnya bisa dicoba. Di aplikasi Android, iklan asli dari AdMob yang tampil (sekarang masih **iklan TEST** dari Google).
@@ -42,7 +42,7 @@ Ide berikutnya (belum dibuat): pembelian "Hapus iklan" (menghapus interstitial, 
 ## Yang perlu dilakukan pemilik akun
 
 ### 1. Pasang kunci tanda tangan (sekali saja)
-File `upload-keystore.jks` dan `github-secrets.txt` sudah dibuatkan di folder proyek (bukan di repo). Buka `github-secrets.txt`, lalu tambahkan 4 secret di https://github.com/Lavaruz/suika-merge/settings/secrets/actions. Setelah itu setiap push otomatis menghasilkan file `.aab` yang sudah ditandatangani. Simpan keystore dan password-nya di tempat aman.
+File `upload-keystore.jks` dan `github-secrets.txt` sudah dibuatkan di folder proyek (bukan di repo). Buka `github-secrets.txt`, lalu tambahkan 4 secret di https://github.com/Lav-Studio-Org/suika-merge/settings/secrets/actions. Setelah itu setiap push otomatis menghasilkan file `.aab` yang sudah ditandatangani. Simpan keystore dan password-nya di tempat aman.
 
 ### 2. Akun Google Play Console
 - Daftar di https://play.google.com/console (biaya sekali bayar USD 25) dan selesaikan verifikasi identitas.
@@ -61,7 +61,7 @@ File `upload-keystore.jks` dan `github-secrets.txt` sudah dibuatkan di folder pr
 Bahan yang sudah ada di folder `store/`: ikon 512x512 dan feature graphic 1024x500. Yang masih perlu:
 - Minimal 2 screenshot HP (bisa dibuatkan).
 - Deskripsi singkat dan panjang (bisa dibuatkan).
-- Link kebijakan privasi: https://lavaruz.github.io/suika-merge/privacy.html
+- Link kebijakan privasi: https://lav-studio-org.github.io/suika-merge/privacy.html
 - Kuesioner rating konten (IARC), target audiens (sarankan 13+ supaya aturan iklan anak tidak berlaku), formulir Data safety (sebut AdMob: ID iklan dan info perangkat untuk iklan), dan centang "aplikasi berisi iklan".
 
 ### 5. Saat siap rilis

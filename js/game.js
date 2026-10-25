@@ -20,12 +20,16 @@
   const IS_TOUCH = matchMedia('(pointer: coarse)').matches;
   const MAX_PARTICLES = IS_TOUCH ? 220 : 400;
   const REVIVE_SECONDS = 6;
+  const BLITZ_TIME = 60000;  // Kilat: round length
+  const BLITZ_REVIVE = 15000;
+  const BLITZ_AUTODROP = 3000; // Kilat: the held ball drops by itself after this
 
   const RADII = [17, 23, 30, 37, 45, 54, 63, 74, 86, 99, 114];
   const MAX_LEVEL = RADII.length - 1;
   const DROPPABLE = 5;      // levels 1..5 can be dropped
 
   let theme = SA.themeById(profile.theme);
+  let mode = SA.modeById(profile.mode);
 
   // ---------- DOM ----------
   const $ = (id) => document.getElementById(id);
@@ -169,11 +173,44 @@
   const world = engine.world;
 
   const wallOpts = { isStatic: true, friction: 0.2, restitution: 0.1, label: 'wall' };
-  Composite.add(world, [
-    Bodies.rectangle(W / 2, H + 50, W + 400, 100, wallOpts),
-    Bodies.rectangle(-50, H / 2 - 400, 100, H + 1200, wallOpts),
-    Bodies.rectangle(W + 50, H / 2 - 400, 100, H + 1200, wallOpts),
-  ]);
+
+  // Gelas: an open, tapered glass. Nothing outside it, so a ball that rolls over the rim falls away.
+  const GLASS = (() => {
+    const rimY = Math.round(H * 0.4), bottomY = H - 6;
+    return { rimY, bottomY, bottomHalf: 116, topHalf: 176, wall: 14 };
+  })();
+  // inner x range of the glass at height y
+  function glassSpan(y) {
+    const t = clamp((GLASS.bottomY - y) / (GLASS.bottomY - GLASS.rimY), 0, 1);
+    const half = GLASS.bottomHalf + (GLASS.topHalf - GLASS.bottomHalf) * t;
+    return [W / 2 - half, W / 2 + half];
+  }
+
+  function buildArena() {
+    Composite.remove(world, Composite.allBodies(world).filter((b) => b.label === 'wall'));
+    engine.gravity.x = 0;
+    if (mode.id !== 'glass') {
+      Composite.add(world, [
+        Bodies.rectangle(W / 2, H + 50, W + 400, 100, wallOpts),
+        Bodies.rectangle(-50, H / 2 - 400, 100, H + 1200, wallOpts),
+        Bodies.rectangle(W + 50, H / 2 - 400, 100, H + 1200, wallOpts),
+      ]);
+      return;
+    }
+    const g = GLASS, T = g.wall;
+    const glassOpts = { ...wallOpts, friction: 0.06 };
+    const parts = [Bodies.rectangle(W / 2, g.bottomY + T / 2, g.bottomHalf * 2 + T * 2, T, glassOpts)];
+    for (const side of [-1, 1]) {
+      const ax = W / 2 + side * g.bottomHalf, ay = g.bottomY;
+      const bx = W / 2 + side * g.topHalf, by = g.rimY;
+      const len = Math.hypot(bx - ax, by - ay);
+      const nx = (by - ay) / len * -side, ny = -(bx - ax) / len * -side; // outward normal
+      const ang = Math.atan2(by - ay, bx - ax);
+      parts.push(Bodies.rectangle((ax + bx) / 2 + nx * T / 2, (ay + by) / 2 + ny * T / 2, len, T, { ...glassOpts, angle: ang }));
+      parts.push(Bodies.circle(bx + nx * T / 2, by + ny * T / 2, T / 2, glassOpts)); // rounded rim
+    }
+    Composite.add(world, parts);
+  }
 
   // ---------- State ----------
   let state = 'home'; // home | playing | revive | dying | over
@@ -200,6 +237,11 @@
   let tutorial = -1;        // -1 off, 0 waiting for first drop, 1 waiting for first merge
   let attractNext = 0;
   let mergeQueue = [];
+  let timeLeft = 0;         // Kilat
+  let lastTick = 0;
+  let tilt = 0;             // Goyang: sideways gravity
+  let nextQuake = 0, quakeUntil = 0, quakeWarned = false, quakeKick = 0;
+  let loseReason = 'line';  // line | spill | time
   const particles = [];
   const rings = [];
   const texts = [];
@@ -316,6 +358,11 @@
           } else if (nl >= 6) toast(`Angka ${nl + 1}!`, 'flame');
         }
       }
+      if (mode.id === 'blitz') {
+        const nl = level + 1;
+        const bonus = level === MAX_LEVEL ? 5000 : nl >= 8 ? 3000 : nl >= 6 ? 2000 : nl >= 4 ? 1000 : 0;
+        if (bonus) { timeLeft += bonus; floatText(x, y - 30, `+${bonus / 1000} dtk`, '#7df9ff', 17); }
+      }
       if (tutorial === 1) endTutorial();
       if (combo >= 2) {
         floatText(x, y + 26, `Combo x${combo}`, '#ffd23f', 18);
@@ -414,6 +461,8 @@
     particles.length = rings.length = texts.length = 0;
     score = 0; gameTime = 0; combo = 0; overTimer = 0; gameMaxLevel = 0;
     revived = false; doubled = false; tool = null; dangerLevel = 0;
+    timeLeft = BLITZ_TIME; lastTick = 0; loseReason = 'line';
+    tilt = 0; engine.gravity.x = 0; nextQuake = 22000; quakeUntil = 0; quakeWarned = false;
     scoreEl.textContent = '0';
     current = randDroppable();
     nextLevel = randDroppable();
@@ -429,11 +478,12 @@
     Sfx.click();
     resetGame();
     state = 'playing';
+    if (!profile.modesPlayed.includes(mode.id)) { profile.modesPlayed.push(mode.id); SA.save(); }
     document.body.classList.remove('at-home');
     hidePanels();
     hide('ov-home');
     if (profile.settings.music) Music.start();
-    SA.track('game_start', { games: profile.games });
+    SA.track('game_start', { games: profile.games, mode: mode.id });
   }
 
   function goHome() {
@@ -443,16 +493,22 @@
     hidePanels();
     clearWorld();
     gameTime = 0;
+    tilt = 0; engine.gravity.x = 0;
     document.body.classList.add('at-home');
     show('ov-home');
     Music.stop();
     refreshHome();
   }
 
+  // where the held ball can be aimed (inside the glass rim in Gelas)
+  function aimRange(r) {
+    if (mode.id === 'glass') { const [l, rr] = glassSpan(GLASS.rimY); return [l + r + 2, rr - r - 2]; }
+    return [r + 1, W - r - 1];
+  }
   function drop() {
     if (state !== 'playing' || !canDrop || panelOpen() || tool) return;
     const r = RADII[current];
-    const x = clamp(aimX, r + 1, W - r - 1);
+    const x = clamp(aimX, ...aimRange(r));
     const b = makeOrb(current, x, DROP_Y);
     Body.setAngle(b, (Math.random() - 0.5) * 0.6);
     Body.setVelocity(b, { x: 0, y: 2 });
@@ -473,6 +529,30 @@
   }
 
   function checkOver(dt) {
+    if (mode.id === 'blitz') {
+      timeLeft -= dt;
+      const sec = Math.ceil(timeLeft / 1000);
+      if (sec <= 10 && sec !== lastTick && sec > 0) { lastTick = sec; Sfx.warn(); }
+      if (timeLeft <= 0) { timeLeft = 0; loseReason = 'time'; onLose(); return; }
+      if (canDrop && !tool && gameTime - heldAt > BLITZ_AUTODROP) drop();
+    }
+    if (mode.id === 'glass') {
+      let high = false;
+      for (const b of orbs()) {
+        if (b.position.y - RADII[b.level] > H + 10 || b.position.x < -RADII[b.level] || b.position.x > W + RADII[b.level]) {
+          // fell out of the glass
+          burst(clamp(b.position.x, 10, W - 10), H - 10, theme.colors[b.level], 24, 1);
+          Composite.remove(world, b);
+          shake = 10; vibrate(60);
+          loseReason = 'spill';
+          onLose();
+          return;
+        }
+        if (!b.merging && gameTime - b.born > 1200 && b.position.y - RADII[b.level] < GLASS.rimY) high = true;
+      }
+      dangerLevel = high ? 0.6 : 0;
+      return;
+    }
     let above = false, near = false;
     for (const b of orbs()) {
       if (b.merging || gameTime - b.born < 1200) continue;
@@ -488,7 +568,30 @@
       warned = false;
     }
     dangerLevel = above ? 1 : near ? 0.4 : 0;
-    if (overTimer > OVER_TIME) onLose();
+    if (overTimer > OVER_TIME) { loseReason = 'line'; onLose(); }
+  }
+
+  // Goyang: gravity sways sideways, stronger over time, with an earthquake every ~20 seconds
+  function updateQuake(dt) {
+    const amp = 0.1 + 0.26 * Math.min(1, gameTime / 150000);
+    tilt = amp * Math.sin(gameTime / 950);
+    engine.gravity.x = tilt;
+    if (!quakeWarned && gameTime > nextQuake - 1600) { quakeWarned = true; toast('Gempa datang!', 'quake', 1500); Sfx.warn(); }
+    if (gameTime > nextQuake) {
+      quakeUntil = gameTime + 2200;
+      nextQuake = gameTime + 18000 + Math.random() * 7000;
+      quakeWarned = false;
+      Sfx.whoosh();
+      vibrate(80);
+    }
+    if (gameTime < quakeUntil) {
+      shake = Math.max(shake, 5);
+      quakeKick -= dt;
+      if (quakeKick <= 0) {
+        quakeKick = 220;
+        for (const b of orbs()) Body.setVelocity(b, { x: b.velocity.x + (Math.random() - 0.5) * 3.2, y: b.velocity.y - Math.random() * 1.6 });
+      }
+    }
   }
 
   function onLose() {
@@ -506,6 +609,11 @@
 
   let reviveTimer = 0;
   function offerRevive() {
+    $('revive-text').textContent = loseReason === 'time'
+      ? 'Tonton iklan singkat untuk tambahan 15 detik.'
+      : loseReason === 'spill'
+        ? 'Tonton iklan singkat untuk lanjut. Bola paling atas di gelas akan dibersihkan.'
+        : 'Tonton iklan singkat untuk lanjut. Bola paling atas akan dibersihkan.';
     show('ov-revive');
     const bar = $('revive-bar');
     bar.style.transition = 'none';
@@ -520,8 +628,16 @@
   function doRevive() {
     revived = true;
     hide('ov-revive');
+    if (loseReason === 'time') {
+      timeLeft = BLITZ_REVIVE;
+      lastTick = 0;
+      state = 'playing';
+      Sfx.revive();
+      toast('+15 detik!', 'timer');
+      return;
+    }
     // clear everything that pokes into the top part of the jar
-    const cut = LINE_Y + 170;
+    const cut = mode.id === 'glass' ? GLASS.rimY + 90 : LINE_Y + 170;
     const list = orbs().filter((b) => b.position.y - RADII[b.level] < cut).sort((a, b) => a.position.y - b.position.y);
     list.forEach((b, i) => {
       setTimeout(() => {
@@ -558,18 +674,21 @@
 
   function showOver() {
     state = 'over';
-    const prevBest = profile.best;
+    const prevBest = profile.bests[mode.id] || 0;
     const isRecord = score > prevBest;
-    if (isRecord) profile.best = score;
+    if (isRecord) profile.bests[mode.id] = score;
+    if (mode.id === 'casual' && score > profile.best) profile.best = score;
     profile.games++;
-    earned = Math.floor(score / 25) + Math.max(0, gameMaxLevel - 4) * 5;
+    earned = Math.round((Math.floor(score / 25) + Math.max(0, gameMaxLevel - 4) * 5) * mode.coinMult);
     SA.addCoins(earned);
     SA.missionEvent('games', 1);
     SA.missionEvent('score', score);
     if (tutorial !== -1) { profile.tutorialDone = true; tutorial = -1; }
     SA.save();
     Ads.gameFinished();
-    SA.track('game_over', { score, maxLevel: gameMaxLevel + 1, revived });
+    SA.track('game_over', { score, maxLevel: gameMaxLevel + 1, revived, mode: mode.id });
+    $('over-title').textContent = loseReason === 'time' ? 'Waktu habis!' : loseReason === 'spill' ? 'Tumpah!' : 'Game Over';
+    $('over-mode').innerHTML = `${ic(mode.icon)}<span>Mode ${mode.name}${mode.coinMult > 1 ? ` · koin x${mode.coinMult}` : ''}</span>`;
 
     $('final-score').textContent = score;
     $('final-best').innerHTML = isRecord && score > 0
@@ -712,6 +831,7 @@
         c.beginPath(); c.arc(x, y, 3, 0, Math.PI * 2); c.fill();
       }
     }
+    if (mode.id === 'glass') { drawGlass(c); return; }
     c.fillStyle = theme.floor;
     c.fillRect(0, H - 6, W, 6);
 
@@ -728,6 +848,93 @@
     if (dangerLevel >= 1) {
       c.fillStyle = `rgba(255,60,90,${0.08 + 0.06 * Math.sin(t * 12)})`;
       c.fillRect(0, 0, W, LINE_Y);
+    }
+  }
+
+  function glassPath(c, inset, fresh = true) {
+    const g = GLASS;
+    const [bl, br] = [W / 2 - g.bottomHalf - inset, W / 2 + g.bottomHalf + inset];
+    const [tl, tr] = [W / 2 - g.topHalf - inset, W / 2 + g.topHalf + inset];
+    if (fresh) c.beginPath();
+    c.moveTo(tl, g.rimY);
+    c.lineTo(bl, g.bottomY + inset);
+    c.lineTo(br, g.bottomY + inset);
+    c.lineTo(tr, g.rimY);
+  }
+  function drawGlass(c) {
+    const g = GLASS, T = g.wall;
+    // the drop zone outside the glass is dimmed: anything that lands there is lost
+    c.save();
+    c.fillStyle = 'rgba(42,24,64,.22)';
+    c.beginPath(); c.rect(-20, -20, W + 40, H + 40);
+    glassPath(c, T, false); c.lineTo(W / 2 + g.topHalf + T, -20); c.lineTo(W / 2 - g.topHalf - T, -20); c.closePath();
+    c.fill('evenodd');
+    // falling-off arrows on both sides
+    c.fillStyle = 'rgba(255,70,100,.22)';
+    for (const side of [-1, 1]) {
+      const x = side < 0 ? 12 : W - 12;
+      for (let i = 0; i < 3; i++) {
+        const y = g.rimY + 60 + i * 26 + ((performance.now() / 30) % 26);
+        c.beginPath(); c.moveTo(x - 7, y); c.lineTo(x + 7, y); c.lineTo(x, y + 9); c.closePath(); c.fill();
+      }
+    }
+    // glass body: tinted inside, thick translucent walls, bright rim
+    glassPath(c, 0); c.closePath();
+    c.fillStyle = 'rgba(255,255,255,.28)'; c.fill();
+    glassPath(c, T / 2);
+    c.lineJoin = 'round'; c.lineCap = 'round';
+    c.strokeStyle = 'rgba(42,24,64,.35)'; c.lineWidth = T + 5; c.stroke();
+    c.strokeStyle = 'rgba(235,248,255,.95)'; c.lineWidth = T; c.stroke();
+    glassPath(c, T / 2);
+    c.strokeStyle = 'rgba(110,170,230,.6)'; c.lineWidth = 3; c.stroke();
+    const t = performance.now() / 1000;
+    const a = state === 'home' ? 0 : dangerLevel * (0.55 + 0.35 * Math.sin(t * 10));
+    for (const side of [-1, 1]) {
+      c.fillStyle = a ? `rgba(255,70,100,${0.5 + a * 0.5})` : 'rgba(255,255,255,.95)';
+      c.beginPath(); c.arc(W / 2 + side * (g.topHalf + T / 2), g.rimY, T / 2 + 1, 0, Math.PI * 2); c.fill();
+    }
+    // glint
+    c.strokeStyle = 'rgba(255,255,255,.6)'; c.lineWidth = 5;
+    c.beginPath(); c.moveTo(W / 2 - g.topHalf + 22, g.rimY + 26); c.lineTo(W / 2 - g.bottomHalf + 16, g.bottomY - 40); c.stroke();
+    c.restore();
+  }
+
+  // per-mode overlay: Kilat timer, Goyang tilt meter
+  function drawModeHud(c, now) {
+    if (mode.id === 'blitz') {
+      const p = clamp(timeLeft / BLITZ_TIME, 0, 1);
+      const low = timeLeft < 10000;
+      c.fillStyle = 'rgba(42,24,64,.15)';
+      c.fillRect(0, 0, W, 7);
+      c.fillStyle = low ? `rgba(255,77,109,${0.75 + 0.25 * Math.sin(now / 90)})` : '#ff9f43';
+      c.fillRect(0, 0, W * Math.min(1, p), 7);
+      const sec = Math.ceil(timeLeft / 1000);
+      c.font = `700 ${low ? 26 : 22}px Fredoka, ui-rounded, system-ui, sans-serif`;
+      c.textAlign = 'left'; c.textBaseline = 'middle'; c.lineJoin = 'round';
+      c.lineWidth = 5; c.strokeStyle = 'rgba(255,255,255,.9)';
+      c.strokeText(`${sec} dtk`, 12, 30);
+      c.fillStyle = low ? '#e11d48' : '#2a1840';
+      c.fillText(`${sec} dtk`, 12, 30);
+    }
+    if (mode.id === 'quake') {
+      // spirit level: the bubble floats away from the side gravity pulls to
+      const cx = W - 52, cy = 26, hw = 38;
+      c.fillStyle = 'rgba(255,255,255,.75)';
+      roundRect(c, cx - hw, cy - 10, hw * 2, 20, 10); c.fill();
+      c.strokeStyle = 'rgba(42,24,64,.35)'; c.lineWidth = 2; c.stroke();
+      c.beginPath(); c.moveTo(cx, cy - 7); c.lineTo(cx, cy + 7); c.stroke();
+      const bx = cx - clamp(tilt / 0.36, -1, 1) * (hw - 10);
+      c.fillStyle = gameTime < quakeUntil ? '#ff4d6d' : '#4ade80';
+      c.beginPath(); c.arc(bx, cy, 7, 0, Math.PI * 2); c.fill();
+      // the downhill side glows
+      if (Math.abs(tilt) > 0.05) {
+        const right = tilt > 0;
+        const gr = c.createLinearGradient(right ? W : 0, 0, right ? W - 70 : 70, 0);
+        gr.addColorStop(0, `rgba(255,120,150,${Math.min(0.35, Math.abs(tilt))})`);
+        gr.addColorStop(1, 'rgba(255,120,150,0)');
+        c.fillStyle = gr;
+        c.fillRect(right ? W - 70 : 0, LINE_Y, 70, H - LINE_Y);
+      }
     }
   }
 
@@ -758,7 +965,7 @@
     // aim guide + held orb
     if (state === 'playing' && !tool) {
       const r = RADII[current];
-      const x = clamp(aimX, r + 1, W - r - 1);
+      const x = clamp(aimX, ...aimRange(r));
       if (canDrop) {
         c.save();
         c.strokeStyle = theme.guide;
@@ -768,6 +975,13 @@
         c.restore();
         const s = easeOutBack(Math.min(1, (gameTime - heldAt) / 180));
         drawSprite(c, current, x, DROP_Y + Math.sin(now / 300) * 2, 0, Math.max(0.01, s), false);
+        if (mode.id === 'blitz') {
+          // auto-drop countdown ring around the held ball
+          const p = clamp((gameTime - heldAt) / BLITZ_AUTODROP, 0, 1);
+          c.strokeStyle = p > 0.7 ? '#ff4d6d' : 'rgba(42,24,64,.45)';
+          c.lineWidth = 3;
+          c.beginPath(); c.arc(x, DROP_Y, r + 6, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (1 - p)); c.stroke();
+        }
       }
     }
 
@@ -832,6 +1046,8 @@
       c.fillText(t.str, t.x, t.y);
     }
     c.globalAlpha = 1;
+
+    if (state !== 'home') drawModeHud(c, now);
 
     // first-game coach marks
     if (state === 'playing' && tutorial >= 0 && !panelOpen()) drawTutorial(c, now);
@@ -955,8 +1171,34 @@
     m.textContent = n;
   }
 
+  function renderModes() {
+    $('modes').innerHTML = SA.MODES.map((m) => `
+      <button class="mode-btn ${m.color}${m.id === mode.id ? ' on' : ''}" data-mode="${m.id}" role="radio" aria-checked="${m.id === mode.id}">
+        <span class="ni">${ic(m.icon)}</span><span class="mn">${m.name}</span>
+        <span class="stars" aria-label="Kesulitan ${m.stars} dari 3">${'<i></i>'.repeat(m.stars)}</span>
+        ${m.id !== 'casual' && !profile.modesPlayed.includes(m.id) ? '<em class="new">Baru</em>' : ''}
+      </button>`).join('');
+    $('mode-desc').textContent = mode.desc + (mode.coinMult > 1 ? ` Koin x${mode.coinMult}.` : '');
+  }
+  function setMode(id) {
+    if (id === mode.id) return;
+    mode = SA.modeById(id);
+    profile.mode = mode.id;
+    SA.save();
+    clearWorld();
+    buildArena();
+    refreshHome();
+  }
+  $('modes').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-mode]');
+    if (!b) return;
+    Sfx.unlock(); Sfx.click();
+    setMode(b.dataset.mode);
+  });
+
   function refreshHome() {
-    $('home-best').textContent = profile.best;
+    $('home-best').textContent = profile.bests[mode.id] || 0;
+    renderModes();
     setCoins();
     refreshBadges();
     drawEvo();
@@ -1203,7 +1445,7 @@
   $('tool-cancel').addEventListener('click', (e) => { e.stopPropagation(); cancelTool(); });
   $('tool-cancel').addEventListener('pointerdown', (e) => e.stopPropagation());
   $('btn-share').addEventListener('click', async () => {
-    const text = `Aku dapat skor ${score} di Suika Angka (angka tertinggi ${gameMaxLevel + 1})! Coba kalahkan:`;
+    const text = `Aku dapat skor ${score} di Suika Angka mode ${mode.name} (angka tertinggi ${gameMaxLevel + 1})! Coba kalahkan:`;
     const url = 'https://lavaruz.github.io/suika-merge/';
     try {
       if (navigator.share) { await navigator.share({ title: 'Suika Angka', text, url }); return; }
@@ -1304,10 +1546,12 @@
   // ---------- Loop ----------
   // the home screen plays a silent demo in the jar behind the menu
   function attract(dt) {
+    for (const b of orbs()) if (b.position.y > H + 150) Composite.remove(world, b);
     attractNext -= dt;
     if (attractNext <= 0) {
       attractNext = 650 + Math.random() * 500;
-      makeOrb(Math.floor(Math.random() * 4), 40 + Math.random() * (W - 80), -30);
+      const [l, r] = mode.id === 'glass' ? glassSpan(GLASS.rimY) : [0, W];
+      makeOrb(Math.floor(Math.random() * 4), l + 40 + Math.random() * (r - l - 80), -30);
     }
     if (orbs().some((b) => !b.merging && gameTime - b.born > 1500 && b.position.y - RADII[b.level] < H * 0.45)) {
       for (const b of orbs()) { burst(b.position.x, b.position.y, theme.colors[b.level], 6, 0.6); Composite.remove(world, b); }
@@ -1328,6 +1572,7 @@
       const kb = (keys.ArrowLeft || keys.a ? -1 : 0) + (keys.ArrowRight || keys.d ? 1 : 0);
       if (kb) aimX = clamp(aimX + kb * dt * 0.35, 0, W);
       acc += dt;
+      if (state === 'playing' && mode.id === 'quake') updateQuake(dt);
       while (acc >= STEP) {
         Engine.update(engine, STEP);
         processMerges();
@@ -1344,6 +1589,7 @@
   }
 
   // ---------- Boot ----------
+  buildArena();
   Sfx.configure(profile.settings);
   SA.ensureMissions();
   current = randDroppable();
@@ -1369,6 +1615,8 @@
     orbs: () => orbs().map((b) => ({ level: b.level, x: b.position.x, y: b.position.y })),
     drop: (x) => { aimX = x; drop(); },
     spawn: (level, x, y) => makeOrb(level, x, y),
+    setMode: (id) => setMode(id),
+    get timeLeft() { return timeLeft; },
     profile,
   };
 })();

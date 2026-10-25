@@ -676,3 +676,49 @@ body:not(.at-home) .home-only { display: none !important; }
   .medal .ic { width: 32px; height: 32px; }
   #hero { margin: 10px 0 14px; }
 }
+
+/* ---------- v1.2 game modes ---------- */
+.modes { width: 100%; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 0 0 6px; }
+.mode-btn {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 8px 2px 7px; min-height: 44px;
+  border: 2px solid transparent; border-radius: 16px;
+  background: rgba(255,255,255,.7);
+  color: var(--ink); font: inherit; font-weight: 600; font-size: 13px;
+  box-shadow: 0 3px 0 #d9c6a8;
+  transition: transform .12s, background .15s;
+}
+.mode-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #d9c6a8; }
+.mode-btn .ni { width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; color: #fff; box-shadow: inset 0 -3px 0 rgba(0,0,0,.18); }
+.mode-btn .ni .ic { width: 22px; height: 22px; --acc: rgba(255,255,255,.35); }
+.mode-btn .stars { display: flex; gap: 3px; }
+.mode-btn .stars i { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-2); opacity: .55; }
+.mode-btn.on { background: #fff; border-color: var(--ink); box-shadow: 0 3px 0 var(--ink); }
+.mode-btn.on .stars i { background: var(--accent); opacity: 1; }
+.mode-btn .new {
+  position: absolute; top: -8px; right: -4px;
+  padding: 1px 6px; border-radius: 999px;
+  background: var(--accent); color: #fff;
+  font-style: normal; font-size: 10px; font-weight: 700; letter-spacing: .03em;
+  box-shadow: 0 2px 0 rgba(0,0,0,.2);
+}
+.mode-desc { margin: 2px 0 14px; min-height: 2.6em; text-align: center; color: var(--ink-2); font-size: 14px; line-height: 1.3; max-width: 300px; }
+.mode-tag { display: inline-flex; align-items: center; gap: 6px; margin: -4px auto 8px; padding: 4px 12px; border-radius: 999px; background: rgba(42,24,64,.08); color: var(--ink-2); font-size: 13px; font-weight: 600; }
+.mode-tag .ic { width: 16px; height: 16px; }
+#ov-over .card { text-align: center; }
+@media (max-height: 680px) {
+  #hero { display: none; }
+  .home-center { margin-top: 2%; }
+  .title { font-size: 44px; margin-bottom: 12px; }
+  .mode-btn .ni { width: 28px; height: 28px; border-radius: 9px; }
+  .mode-btn .ni .ic { width: 18px; height: 18px; }
+  .mode-desc { margin-bottom: 10px; font-size: 13px; }
+}
+#hero { max-width: 230px; margin: 8px 0 12px; }
+.home-center { margin-top: 3%; }
+@media (max-height: 600px) {
+  .title { font-size: 38px; margin-bottom: 8px; }
+  .mode-desc { margin-bottom: 6px; min-height: 0; }
+  #btn-play { padding-top: 10px; padding-bottom: 10px; font-size: 26px; }
+}

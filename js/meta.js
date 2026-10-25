@@ -33,6 +33,16 @@
   ];
   SA.themeById = (id) => SA.THEMES.find((t) => t.id === id) || SA.THEMES[0];
 
+  // ---------- Game modes ----------
+  // Each challenge mode tests a different skill: balance (glass), speed (blitz), adapting (quake).
+  SA.MODES = [
+    { id: 'casual', name: 'Santai', icon: 'leaf', color: 't-green', stars: 1, coinMult: 1, desc: 'Mode klasik. Jaga tumpukan di bawah garis merah.' },
+    { id: 'glass', name: 'Gelas', icon: 'cup', color: 't-blue', stars: 2, coinMult: 1.5, desc: 'Gelas tanpa tutup. Kalah kalau ada bola yang tumpah.' },
+    { id: 'blitz', name: 'Kilat', icon: 'timer', color: 't-orange', stars: 2, coinMult: 1.5, desc: '60 detik! Gabung angka besar untuk tambah waktu.' },
+    { id: 'quake', name: 'Goyang', icon: 'quake', color: 't-pink', stars: 3, coinMult: 2, desc: 'Toples terus miring dan sesekali gempa. Makin lama makin kencang.' },
+  ];
+  SA.modeById = (id) => SA.MODES.find((m) => m.id === id) || SA.MODES[0];
+
   // ---------- Power-ups ----------
   SA.POWERS = {
     hammer: { name: 'Palu', icon: 'hammer', price: 60, desc: 'Pecahkan satu bola mana pun.' },
@@ -62,6 +72,9 @@
     missions: { date: '', list: [] },
     freeCoins: { date: '', count: 0 },
     noAds: false,
+    mode: 'casual',
+    bests: {},          // best score per mode
+    modesPlayed: [],
   });
 
   function load() {
@@ -77,9 +90,12 @@
         if (muted) d.settings.sound = d.settings.music = false;
         if (d.best > 0) d.tutorialDone = true;
       } catch { /* ignore */ }
+      if (d.best) d.bests.casual = d.best;
       return d;
     }
-    return { ...d, ...p, power: { ...d.power, ...p.power }, settings: { ...d.settings, ...p.settings } };
+    const out = { ...d, ...p, power: { ...d.power, ...p.power }, settings: { ...d.settings, ...p.settings }, bests: { ...d.bests, ...p.bests } };
+    if (!out.bests.casual && out.best) out.bests.casual = out.best; // scores before modes existed
+    return out;
   }
 
   const profile = load();

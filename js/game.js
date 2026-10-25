@@ -20,9 +20,13 @@
   const IS_TOUCH = matchMedia('(pointer: coarse)').matches;
   const MAX_PARTICLES = IS_TOUCH ? 220 : 400;
   const REVIVE_SECONDS = 6;
-  const BLITZ_TIME = 60000;  // Kilat: round length
+  // Kilat balance: a slower drop cooldown makes spam-tapping fill the jar instead of scoring,
+  // and only merges to 5+ buy time, so planned stacking beats fast tapping.
+  const BLITZ_TIME = 75000;  // Kilat: round length
   const BLITZ_REVIVE = 15000;
-  const BLITZ_AUTODROP = 3000; // Kilat: the held ball drops by itself after this
+  const BLITZ_AUTODROP = 4000; // Kilat: the held ball drops by itself after this
+  const BLITZ_COOLDOWN = 700;
+  const BLITZ_DROP_COST = 500; // every drop costs a little time, so tapping fast drains the clock
 
   const RADII = [17, 23, 30, 37, 45, 54, 63, 74, 86, 99, 114];
   const MAX_LEVEL = RADII.length - 1;
@@ -188,7 +192,6 @@
 
   function buildArena() {
     Composite.remove(world, Composite.allBodies(world).filter((b) => b.label === 'wall'));
-    engine.gravity.x = 0;
     if (mode.id !== 'glass') {
       Composite.add(world, [
         Bodies.rectangle(W / 2, H + 50, W + 400, 100, wallOpts),
@@ -197,7 +200,8 @@
       ]);
       return;
     }
-    const g = GLASS, T = g.wall;
+    // physics walls are much thicker than the drawn glass, so a fast ball can't tunnel through
+    const g = GLASS, T = 80;
     const glassOpts = { ...wallOpts, friction: 0.06 };
     const parts = [Bodies.rectangle(W / 2, g.bottomY + T / 2, g.bottomHalf * 2 + T * 2, T, glassOpts)];
     for (const side of [-1, 1]) {
@@ -207,7 +211,8 @@
       const nx = (by - ay) / len * -side, ny = -(bx - ax) / len * -side; // outward normal
       const ang = Math.atan2(by - ay, bx - ax);
       parts.push(Bodies.rectangle((ax + bx) / 2 + nx * T / 2, (ay + by) / 2 + ny * T / 2, len, T, { ...glassOpts, angle: ang }));
-      parts.push(Bodies.circle(bx + nx * T / 2, by + ny * T / 2, T / 2, glassOpts)); // rounded rim
+      const rim = g.wall / 2;
+      parts.push(Bodies.circle(bx + nx * rim, by + ny * rim, rim, glassOpts)); // rounded rim
     }
     Composite.add(world, parts);
   }
@@ -239,8 +244,7 @@
   let mergeQueue = [];
   let timeLeft = 0;         // Kilat
   let lastTick = 0;
-  let tilt = 0;             // Goyang: sideways gravity
-  let nextQuake = 0, quakeUntil = 0, quakeWarned = false, quakeKick = 0;
+  let dropFlash = 0;
   let loseReason = 'line';  // line | spill | time
   const particles = [];
   const rings = [];
@@ -360,7 +364,8 @@
       }
       if (mode.id === 'blitz') {
         const nl = level + 1;
-        const bonus = level === MAX_LEVEL ? 5000 : nl >= 8 ? 3000 : nl >= 6 ? 2000 : nl >= 4 ? 1000 : 0;
+        // the merged number (nl + 1): 6 = +1s, 7 = +2s, 8 = +3s, 9+ = +4s, clearing two 11s = +8s
+        const bonus = level === MAX_LEVEL ? 8000 : nl >= 5 ? Math.min(4, nl - 4) * 1000 : 0;
         if (bonus) { timeLeft += bonus; floatText(x, y - 30, `+${bonus / 1000} dtk`, '#7df9ff', 17); }
       }
       if (tutorial === 1) endTutorial();
@@ -462,7 +467,6 @@
     score = 0; gameTime = 0; combo = 0; overTimer = 0; gameMaxLevel = 0;
     revived = false; doubled = false; tool = null; dangerLevel = 0;
     timeLeft = BLITZ_TIME; lastTick = 0; loseReason = 'line';
-    tilt = 0; engine.gravity.x = 0; nextQuake = 22000; quakeUntil = 0; quakeWarned = false;
     scoreEl.textContent = '0';
     current = randDroppable();
     nextLevel = randDroppable();
@@ -493,7 +497,6 @@
     hidePanels();
     clearWorld();
     gameTime = 0;
-    tilt = 0; engine.gravity.x = 0;
     document.body.classList.add('at-home');
     show('ov-home');
     Music.stop();
@@ -513,12 +516,17 @@
     Body.setAngle(b, (Math.random() - 0.5) * 0.6);
     Body.setVelocity(b, { x: 0, y: 2 });
     Sfx.drop();
+    if (mode.id === 'blitz') {
+      timeLeft = Math.max(0, timeLeft - BLITZ_DROP_COST);
+      dropFlash = 1;
+      lastMergeAt = -9999; // combos only come from chain reactions, not from tapping fast
+    }
     canDrop = false;
     current = nextLevel;
     nextLevel = randDroppable();
     drawNext();
     if (tutorial === 0) tutorial = 1;
-    setTimeout(() => { canDrop = true; heldAt = gameTime; }, DROP_COOLDOWN);
+    setTimeout(() => { canDrop = true; heldAt = gameTime; }, mode.id === 'blitz' ? BLITZ_COOLDOWN : DROP_COOLDOWN);
   }
 
   function endTutorial() {
@@ -569,29 +577,6 @@
     }
     dangerLevel = above ? 1 : near ? 0.4 : 0;
     if (overTimer > OVER_TIME) { loseReason = 'line'; onLose(); }
-  }
-
-  // Goyang: gravity sways sideways, stronger over time, with an earthquake every ~20 seconds
-  function updateQuake(dt) {
-    const amp = 0.1 + 0.26 * Math.min(1, gameTime / 150000);
-    tilt = amp * Math.sin(gameTime / 950);
-    engine.gravity.x = tilt;
-    if (!quakeWarned && gameTime > nextQuake - 1600) { quakeWarned = true; toast('Gempa datang!', 'quake', 1500); Sfx.warn(); }
-    if (gameTime > nextQuake) {
-      quakeUntil = gameTime + 2200;
-      nextQuake = gameTime + 18000 + Math.random() * 7000;
-      quakeWarned = false;
-      Sfx.whoosh();
-      vibrate(80);
-    }
-    if (gameTime < quakeUntil) {
-      shake = Math.max(shake, 5);
-      quakeKick -= dt;
-      if (quakeKick <= 0) {
-        quakeKick = 220;
-        for (const b of orbs()) Body.setVelocity(b, { x: b.velocity.x + (Math.random() - 0.5) * 3.2, y: b.velocity.y - Math.random() * 1.6 });
-      }
-    }
   }
 
   function onLose() {
@@ -899,7 +884,7 @@
     c.restore();
   }
 
-  // per-mode overlay: Kilat timer, Goyang tilt meter
+  // per-mode overlay: Kilat timer
   function drawModeHud(c, now) {
     if (mode.id === 'blitz') {
       const p = clamp(timeLeft / BLITZ_TIME, 0, 1);
@@ -908,6 +893,11 @@
       c.fillRect(0, 0, W, 7);
       c.fillStyle = low ? `rgba(255,77,109,${0.75 + 0.25 * Math.sin(now / 90)})` : '#ff9f43';
       c.fillRect(0, 0, W * Math.min(1, p), 7);
+      if (dropFlash > 0) { // the slice a drop just cost
+        c.fillStyle = `rgba(255,77,109,${dropFlash})`;
+        c.fillRect(W * Math.min(1, p), 0, W * BLITZ_DROP_COST / BLITZ_TIME, 7);
+        dropFlash = Math.max(0, dropFlash - 0.05);
+      }
       const sec = Math.ceil(timeLeft / 1000);
       c.font = `700 ${low ? 26 : 22}px Fredoka, ui-rounded, system-ui, sans-serif`;
       c.textAlign = 'left'; c.textBaseline = 'middle'; c.lineJoin = 'round';
@@ -915,26 +905,6 @@
       c.strokeText(`${sec} dtk`, 12, 30);
       c.fillStyle = low ? '#e11d48' : '#2a1840';
       c.fillText(`${sec} dtk`, 12, 30);
-    }
-    if (mode.id === 'quake') {
-      // spirit level: the bubble floats away from the side gravity pulls to
-      const cx = W - 52, cy = 26, hw = 38;
-      c.fillStyle = 'rgba(255,255,255,.75)';
-      roundRect(c, cx - hw, cy - 10, hw * 2, 20, 10); c.fill();
-      c.strokeStyle = 'rgba(42,24,64,.35)'; c.lineWidth = 2; c.stroke();
-      c.beginPath(); c.moveTo(cx, cy - 7); c.lineTo(cx, cy + 7); c.stroke();
-      const bx = cx - clamp(tilt / 0.36, -1, 1) * (hw - 10);
-      c.fillStyle = gameTime < quakeUntil ? '#ff4d6d' : '#4ade80';
-      c.beginPath(); c.arc(bx, cy, 7, 0, Math.PI * 2); c.fill();
-      // the downhill side glows
-      if (Math.abs(tilt) > 0.05) {
-        const right = tilt > 0;
-        const gr = c.createLinearGradient(right ? W : 0, 0, right ? W - 70 : 70, 0);
-        gr.addColorStop(0, `rgba(255,120,150,${Math.min(0.35, Math.abs(tilt))})`);
-        gr.addColorStop(1, 'rgba(255,120,150,0)');
-        c.fillStyle = gr;
-        c.fillRect(right ? W - 70 : 0, LINE_Y, 70, H - LINE_Y);
-      }
     }
   }
 
@@ -1572,7 +1542,6 @@
       const kb = (keys.ArrowLeft || keys.a ? -1 : 0) + (keys.ArrowRight || keys.d ? 1 : 0);
       if (kb) aimX = clamp(aimX + kb * dt * 0.35, 0, W);
       acc += dt;
-      if (state === 'playing' && mode.id === 'quake') updateQuake(dt);
       while (acc >= STEP) {
         Engine.update(engine, STEP);
         processMerges();
@@ -1617,6 +1586,8 @@
     spawn: (level, x, y) => makeOrb(level, x, y),
     setMode: (id) => setMode(id),
     get timeLeft() { return timeLeft; },
+    get current() { return current; },
+    engine,
     profile,
   };
 })();

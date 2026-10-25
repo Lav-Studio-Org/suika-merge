@@ -34,12 +34,11 @@
   SA.themeById = (id) => SA.THEMES.find((t) => t.id === id) || SA.THEMES[0];
 
   // ---------- Game modes ----------
-  // Each challenge mode tests a different skill: balance (glass), speed (blitz), adapting (quake).
+  // Each challenge mode tests a different skill: balance (glass) and speed with planning (blitz).
   SA.MODES = [
     { id: 'casual', name: 'Santai', icon: 'leaf', color: 't-green', stars: 1, coinMult: 1, desc: 'Mode klasik. Jaga tumpukan di bawah garis merah.' },
     { id: 'glass', name: 'Gelas', icon: 'cup', color: 't-blue', stars: 2, coinMult: 1.5, desc: 'Gelas tanpa tutup. Kalah kalau ada bola yang tumpah.' },
-    { id: 'blitz', name: 'Kilat', icon: 'timer', color: 't-orange', stars: 2, coinMult: 1.5, desc: '60 detik! Gabung angka besar untuk tambah waktu.' },
-    { id: 'quake', name: 'Goyang', icon: 'quake', color: 't-pink', stars: 3, coinMult: 2, desc: 'Toples terus miring dan sesekali gempa. Makin lama makin kencang.' },
+    { id: 'blitz', name: 'Kilat', icon: 'timer', color: 't-orange', stars: 2, coinMult: 1.5, desc: '75 detik, tiap bola memakan waktu. Bentuk angka 6 ke atas untuk tambah waktu.' },
   ];
   SA.modeById = (id) => SA.MODES.find((m) => m.id === id) || SA.MODES[0];
 

@@ -72,7 +72,7 @@ Ganti ID test ke ID asli di dua tempat, lalu push:
 Upload `suika-angka-release.aab` dari Actions ke track Closed testing, undang 12 penguji, tunggu 14 hari, lalu ajukan akses Production.
 
 ## Catatan teknis
-- `appId` aplikasi: `com.lavaruz.suikaangka`. **Tidak bisa diganti** setelah aplikasi pertama kali diupload ke Play Store.
-- `versionCode` otomatis memakai nomor run GitHub Actions, jadi setiap build baru selalu lebih tinggi.
+- `appId` aplikasi: `com.lavstudio.suikaangka`. **Tidak bisa diganti** setelah aplikasi pertama kali diupload ke Play Store.
+- `versionCode` otomatis memakai nomor run GitHub Actions + 1000, jadi setiap build baru selalu lebih tinggi. File `suika-angka-release.aab` bertanda tangan ikut terbit di release `android-latest`.
 - Build lokal (butuh Android SDK + JDK 21): `npm ci && npm run android:debug`.
 - Gambar ikon, splash, dan store dibuat ulang dengan `node scripts/make-art.cjs` (butuh Playwright).

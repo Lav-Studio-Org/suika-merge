@@ -1,4 +1,4 @@
-package com.lavaruz.suikaangka;
+package com.lavstudio.suikaangka;
 
 import com.getcapacitor.BridgeActivity;
 

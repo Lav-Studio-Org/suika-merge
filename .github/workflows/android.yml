@@ -16,7 +16,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      VERSION_CODE: ${{ github.run_number }}
       VERSION_NAME: 1.3.${{ github.run_number }}
     steps:
       - uses: actions/checkout@v4
@@ -31,6 +30,10 @@ jobs:
           distribution: temurin
           java-version: 21
           cache: gradle
+
+      # offset keeps every CI build above any version already uploaded to Play
+      - name: Set version code
+        run: echo "VERSION_CODE=$((GITHUB_RUN_NUMBER + 1000))" >> "$GITHUB_ENV"
 
       - name: Build web bundle and sync Capacitor
         run: |
@@ -83,8 +86,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete android-latest --yes --cleanup-tag || true
-          gh release create android-latest dist/suika-angka-debug.apk \
+          gh release create android-latest dist/* \
             --prerelease \
             --target "$GITHUB_SHA" \
             --title "Android test build #${{ github.run_number }}" \
-            --notes "APK debug untuk dicoba di HP (iklan masih iklan TEST dari Google). Build otomatis dari commit ${GITHUB_SHA::7}."
+            --notes "APK debug untuk dicoba di HP. suika-angka-release.aab (kalau ada) adalah file bertanda tangan untuk upload ke Play Console. Build otomatis dari commit ${GITHUB_SHA::7}."

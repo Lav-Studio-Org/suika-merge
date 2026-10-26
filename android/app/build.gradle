@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "com.lavaruz.suikaangka"
+    namespace = "com.lavstudio.suikaangka"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.lavaruz.suikaangka"
+        applicationId "com.lavstudio.suikaangka"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         // CI passes the run number so every uploaded build has a higher versionCode

@@ -7,6 +7,14 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 const RES = path.join(ROOT, 'android/app/src/main/res');
 
+// Lav Studio mark, from the studio site's assets/logo.svg (viewBox 226 508 806 198): [path, x offset]
+const LAV_PATHS = [
+  ['M238 512h62a8 8 0 0 1 8 8v104a8 8 0 0 0 8 8h138a4 4 0 0 1 3 6.4l-42 58.2a6 6 0 0 1-5 2.4H312a82 82 0 0 1-82-82V520a8 8 0 0 1 8-8z', 0],
+  ['M452 703a5 5 0 0 1-4-8l112-155a70 70 0 0 1 56-29h8a70 70 0 0 1 56 29l112 155a5 5 0 0 1-4 8h-72a10 10 0 0 1-8-4l-80-112a10 10 0 0 0-16 0l-80 112a10 10 0 0 1-8 4z', 0],
+  ['M702 512h74a12 12 0 0 1 10 5l67 99a8 8 0 0 0 13 0l67-99a12 12 0 0 1 10-5h76a5 5 0 0 1 4 8L917 676a58 58 0 0 1-48 26h-24a58 58 0 0 1-48-26L698 520a5 5 0 0 1 4-8z', -2],
+];
+const LAV_SPARK = 'M620 628q6 28 36 37q-30 9-36 38q-6-29-38-38q32-9 38-37z';
+
 (async () => {
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 400, height: 800 } });
@@ -14,7 +22,7 @@ const RES = path.join(ROOT, 'android/app/src/main/res');
   await page.waitForFunction(() => window.SA && SA.drawOrb);
   await page.evaluate(() => document.fonts.ready);
 
-  const render = (kind, w, h, opts = {}) => page.evaluate(({ kind, w, h, opts }) => {
+  const render = (kind, w, h, opts = {}) => page.evaluate(({ kind, w, h, opts, LAV_PATHS, LAV_SPARK }) => {
     const cv = document.createElement('canvas');
     cv.width = w; cv.height = h;
     const c = cv.getContext('2d');
@@ -51,8 +59,17 @@ const RES = path.join(ROOT, 'android/app/src/main/res');
     } else if (kind === 'foreground') {
       mark(w / 2, h / 2, S * 0.56); // keep inside the adaptive icon safe zone
     } else if (kind === 'splash') {
-      c.fillStyle = '#2b1d4e'; c.fillRect(0, 0, w, h);
-      mark(w / 2, h / 2, S * 0.38);
+      // pre-Android 12 launch screen: same Lav Studio mark as the 12+ splash (160dp wide on navy)
+      c.fillStyle = '#0b0727'; c.fillRect(0, 0, w, h);
+      const s = (160 * opts.density) / 806;
+      c.save();
+      c.translate(w / 2 - 403 * s, h / 2 - 99 * s);
+      c.scale(s, s);
+      c.translate(-226, -508);
+      c.fillStyle = '#fff';
+      LAV_PATHS.forEach(([d, dx]) => { c.save(); c.translate(dx, 0); c.fill(new Path2D(d)); c.restore(); });
+      c.fillStyle = '#b48cff'; c.fill(new Path2D(LAV_SPARK));
+      c.restore();
     } else if (kind === 'feature') {
       bg();
       const cols = SA.THEMES[0].colors;
@@ -68,7 +85,7 @@ const RES = path.join(ROOT, 'android/app/src/main/res');
       c.fillText('Gabungkan angka, raih angka 11!', 455, 395);
     }
     return cv.toDataURL('image/png');
-  }, { kind, w, h, opts });
+  }, { kind, w, h, opts, LAV_PATHS, LAV_SPARK });
 
   const save = async (file, kind, w, h, opts) => {
     const url = await render(kind, w, h, opts);
@@ -92,7 +109,8 @@ const RES = path.join(ROOT, 'android/app/src/main/res');
     const f = `${RES}/${dir}/splash.png`;
     if (!fs.existsSync(f)) continue;
     const m = execSync(`file "${f}"`).toString().match(/(\d+) x (\d+)/);
-    await save(f, 'splash', +m[1], +m[2]);
+    const dpi = { mdpi: 1, hdpi: 1.5, xhdpi: 2, xxhdpi: 3, xxxhdpi: 4 }[dir.split('-').pop()] || 1;
+    await save(f, 'splash', +m[1], +m[2], { density: dpi });
   }
 
   // web + store art

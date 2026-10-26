@@ -20,6 +20,42 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body class="at-home">
+  <!-- Launch intro: Lav Studio card (continues the Android splash), then the game's title card. js/intro.js runs it. -->
+  <div id="intro" class="lav" aria-hidden="true">
+    <div class="intro-card intro-lav">
+      <svg class="lav-mark" viewBox="226 508 806 198">
+        <g fill="currentColor">
+          <path d="M238 512h62a8 8 0 0 1 8 8v104a8 8 0 0 0 8 8h138a4 4 0 0 1 3 6.4l-42 58.2a6 6 0 0 1-5 2.4H312a82 82 0 0 1-82-82V520a8 8 0 0 1 8-8z"/>
+          <path d="M452 703a5 5 0 0 1-4-8l112-155a70 70 0 0 1 56-29h8a70 70 0 0 1 56 29l112 155a5 5 0 0 1-4 8h-72a10 10 0 0 1-8-4l-80-112a10 10 0 0 0-16 0l-80 112a10 10 0 0 1-8 4z"/>
+          <path transform="translate(-2 0)" d="M702 512h74a12 12 0 0 1 10 5l67 99a8 8 0 0 0 13 0l67-99a12 12 0 0 1 10-5h76a5 5 0 0 1 4 8L917 676a58 58 0 0 1-48 26h-24a58 58 0 0 1-48-26L698 520a5 5 0 0 1 4-8z"/>
+        </g>
+        <path class="lav-spark" fill="#b48cff" d="M620 628q6 28 36 37q-30 9-36 38q-6-29-38-38q32-9 38-37z"/>
+      </svg>
+      <span class="lav-word">Studio</span>
+    </div>
+    <div class="intro-card intro-game">
+      <canvas id="intro-cv" width="260" height="170"></canvas>
+      <h1 class="title"><span>Suika</span><span>Angka</span></h1>
+      <p class="intro-tag">Gabungkan angka, raih angka 11!</p>
+    </div>
+    <p class="intro-skip">Ketuk untuk lewati</p>
+  </div>
+  <script>
+    // Native app: play on every launch, picking up from the splash without a fade-in.
+    // Web: once per tab session, and never inside the studio site's player frame.
+    (function () {
+      var el = document.getElementById('intro');
+      var native = !!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform());
+      var skip = false;
+      try {
+        skip = !native && (window.self !== window.top || sessionStorage.getItem('sa-intro') === '1');
+        sessionStorage.setItem('sa-intro', '1');
+      } catch (e) {}
+      if (skip) { el.remove(); return; }
+      if (native) el.classList.add('native');
+      window.__introT0 = performance.now();
+    })();
+  </script>
   <!-- Icon set: 24px grid, 2px rounded strokes, one accent fill (--acc). -->
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
     <defs>
@@ -264,6 +300,7 @@
   <script src="js/native.js"></script>
   <script src="js/ads.js"></script>
   <script src="js/game.js"></script>
+  <script src="js/intro.js"></script>
   <script>
     if ('serviceWorker' in navigator && location.protocol === 'https:' && !window.Capacitor) {
       window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));

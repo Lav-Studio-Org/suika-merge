@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lav Studio mark (from the studio site's assets/logo.svg), sized for the Android 12+ splash icon:
+     288dp canvas, mark kept inside the 192dp safe circle. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="288dp"
+    android:height="288dp"
+    android:viewportWidth="288"
+    android:viewportHeight="288">
+    <group
+        android:scaleX="0.19851"
+        android:scaleY="0.19851"
+        android:translateX="19.137"
+        android:translateY="23.516">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M238 512h62a8 8 0 0 1 8 8v104a8 8 0 0 0 8 8h138a4 4 0 0 1 3 6.4l-42 58.2a6 6 0 0 1-5 2.4H312a82 82 0 0 1-82-82V520a8 8 0 0 1 8-8z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M452 703a5 5 0 0 1-4-8l112-155a70 70 0 0 1 56-29h8a70 70 0 0 1 56 29l112 155a5 5 0 0 1-4 8h-72a10 10 0 0 1-8-4l-80-112a10 10 0 0 0-16 0l-80 112a10 10 0 0 1-8 4z" />
+        <group android:translateX="-2">
+            <path
+                android:fillColor="#FFFFFF"
+                android:pathData="M702 512h74a12 12 0 0 1 10 5l67 99a8 8 0 0 0 13 0l67-99a12 12 0 0 1 10-5h76a5 5 0 0 1 4 8L917 676a58 58 0 0 1-48 26h-24a58 58 0 0 1-48-26L698 520a5 5 0 0 1 4-8z" />
+        </group>
+        <path
+            android:fillColor="#B48CFF"
+            android:pathData="M620 628q6 28 36 37q-30 9-36 38q-6-29-38-38q32-9 38-37z" />
+    </group>
+</vector>

@@ -73,7 +73,20 @@ jobs:
           if [ -f android/app/build/outputs/bundle/release/app-release.aab ]; then
             cp android/app/build/outputs/bundle/release/app-release.aab dist/suika-angka-release.aab
           fi
-          ls -la dist
+
+      # Same game under a second Play package, as its own AAB next to the main one.
+      - name: Build signed release for com.prasetyo.suikaangka
+        if: env.ANDROID_KEYSTORE_FILE != ''
+        working-directory: android
+        env:
+          APP_ID: com.prasetyo.suikaangka
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          ./gradlew --no-daemon bundleRelease
+          cp app/build/outputs/bundle/release/app-release.aab ../dist/suika-angka-prasetyo-release.aab
+          ls -la ../dist
 
       - uses: actions/upload-artifact@v4
         with:

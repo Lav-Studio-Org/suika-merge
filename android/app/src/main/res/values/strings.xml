@@ -4,6 +4,6 @@
     <string name="title_activity_main">Suika Angka</string>
     <string name="package_name">com.lavstudio.suikaangka</string>
     <string name="custom_url_scheme">com.lavstudio.suikaangka</string>
-    <!-- Google's TEST AdMob app id. Replace with your own from apps.admob.com before publishing. -->
-    <string name="admob_app_id">ca-app-pub-3940256099942544~3347511713</string>
+    <!-- Suika Angka AdMob App ID. Keep test mode enabled in js/ads-config.js during development. -->
+    <string name="admob_app_id">ca-app-pub-9324976595960819~1987457281</string>
 </resources>

@@ -13,7 +13,7 @@ Dokumen ini menjelaskan cara Suika Angka jadi aplikasi Android, bagaimana iklann
 | APK untuk dicoba | https://github.com/Lav-Studio-Org/suika-merge/releases/tag/android-latest |
 | AAB untuk Play Store | Artifact di halaman run Actions, muncul setelah secret keystore dipasang |
 
-Di website, iklan diganti "iklan contoh" supaya alurnya bisa dicoba. Di aplikasi Android, iklan asli dari AdMob yang tampil (sekarang masih **iklan TEST** dari Google).
+Di website, iklan diganti "iklan contoh" supaya alurnya bisa dicoba. Di aplikasi Android, konfigurasi saat ini menggunakan AdMob production IDs. Jangan klik iklan live sendiri; verifikasi app-ads.txt dan kesiapan aplikasi AdMob masih harus diselesaikan sebelum mengandalkan penayangan iklan production.
 
 ## Strategi iklan: banyak tapi tidak mengganggu
 
@@ -52,7 +52,7 @@ File `upload-keystore.jks` dan `github-secrets.txt` sudah dibuatkan di folder pr
 - Daftar di https://admob.google.com dengan akun Google yang sama.
 - Tambah aplikasi: Android, pilih "belum dipublikasikan di toko", nama "Suika Angka".
 - Buat 2 unit iklan: **Rewarded** dan **Interstitial**.
-- Kirim 3 ID ini untuk dipasang: App ID (`ca-app-pub-...~...`), ID unit Rewarded, dan ID unit Interstitial (`ca-app-pub-.../...`).
+- ID yang saat ini dikonfigurasi: App ID `ca-app-pub-9324976595960819~1987457281`, Rewarded `ca-app-pub-9324976595960819/4809895897`, Interstitial `ca-app-pub-9324976595960819/2873997694`.
 - Lengkapi data pembayaran dan pajak di AdMob supaya pendapatan bisa dicairkan.
 - **Jangan pernah klik iklan asli di aplikasi sendiri**, karena akun AdMob bisa diblokir. Untuk mencoba, pakai build test.
 - Setelah aplikasi live di Play Store, tautkan aplikasinya di AdMob (App settings > Add app store details).
@@ -64,10 +64,12 @@ Bahan yang sudah ada di folder `store/`: ikon 512x512 dan feature graphic 1024x5
 - Link kebijakan privasi: https://lav-studio-org.github.io/suika-merge/privacy.html
 - Kuesioner rating konten (IARC), target audiens (sarankan 13+ supaya aturan iklan anak tidak berlaku), formulir Data safety (sebut AdMob: ID iklan dan info perangkat untuk iklan), dan centang "aplikasi berisi iklan".
 
-### 5. Saat siap rilis
-Ganti ID test ke ID asli di dua tempat, lalu push:
-- `js/ads-config.js`: isi `rewarded` dan `interstitial`, ubah `testing` jadi `false`.
-- `android/app/src/main/res/values/strings.xml`: isi `admob_app_id`.
+### 5. Konfigurasi AdMob production
+ID production sudah dipasang di dua tempat:
+- `js/ads-config.js`: Rewarded dan Interstitial ID, dengan `testing: false`.
+- `android/app/src/main/res/values/strings.xml`: App ID.
+
+Sebelum mengandalkan iklan production, selesaikan verifikasi `app-ads.txt` pada website developer yang tercantum di listing Google Play dan tunggu AdMob memverifikasi aplikasi. Jangan klik iklan live sendiri.
 
 Upload `suika-angka-release.aab` dari Actions ke track Closed testing, undang 12 penguji, tunggu 14 hari, lalu ajukan akses Production.
 
